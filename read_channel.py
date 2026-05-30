@@ -255,6 +255,14 @@ async def main():
     downloaded.append(
         filename
     )
+if len(downloaded) == 0:
+
+    print(
+        "NO IMAGES FOUND"
+    )
+
+    return
+
     price = extract_price(
         product_msg.message
     )
