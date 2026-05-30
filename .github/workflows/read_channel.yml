@@ -33,3 +33,9 @@ jobs:
         with:
           name: product-images
           path: downloads/
+      - name: Install dependencies
+        run: |
+              pip install telethon
+              pip install requests
+              pip install google-genai
+              pip install pillow
