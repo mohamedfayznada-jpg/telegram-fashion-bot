@@ -159,17 +159,6 @@ async def main():
         channel,
         limit=150
     )
-    print("\nLAST 20 MESSAGES:\n")
-
-for msg in messages[:20]:
-
-    text = (msg.message or "").strip()
-
-    print("=" * 50)
-    print("ID:", msg.id)
-    print("HAS_MEDIA:", bool(msg.media))
-    print("TEXT:")
-    print(text[:300])
 
     product_msg = None
 
@@ -182,13 +171,7 @@ for msg in messages[:20]:
         if not text:
             continue
 
-        if len(text) < 20:
-            continue
-
         if is_admin_message(text):
-            continue
-
-        if not msg.media:
             continue
 
         product_msg = msg
