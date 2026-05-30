@@ -76,7 +76,7 @@ async def main():
 
     messages = await client.get_messages(
         channel,
-        limit=100
+        limit=150
     )
 
     product_msg = None
@@ -101,16 +101,20 @@ async def main():
 
     image_messages = []
 
-    found_product = False
+    product_index = None
 
-    for msg in messages:
+    for i, msg in enumerate(messages):
 
         if msg.id == product_msg.id:
-            found_product = True
-            continue
+            product_index = i
+            break
 
-        if not found_product:
-            continue
+    if product_index is None:
+        return
+
+    for i in range(product_index + 1, len(messages)):
+
+        msg = messages[i]
 
         text = (msg.message or "").strip()
 
@@ -119,6 +123,8 @@ async def main():
 
         if msg.media:
             image_messages.append(msg)
+
+    image_messages.reverse()
 
     os.makedirs("downloads", exist_ok=True)
 
@@ -133,16 +139,25 @@ async def main():
 
         downloaded.append(filename)
 
+    price = extract_price(
+        product_msg.message
+    )
+
+    product_code = f"FS{product_msg.id}"
+
     print("\n========================")
 
     print("PRODUCT_ID:")
     print(product_msg.id)
 
+    print("\nPRODUCT_CODE:")
+    print(product_code)
+
     print("\nPRODUCT_TEXT:")
     print(product_msg.message)
 
     print("\nPRICE:")
-    print(extract_price(product_msg.message))
+    print(price)
 
     print("\nIMAGES_COUNT:")
     print(len(downloaded))
@@ -151,6 +166,30 @@ async def main():
 
     for f in downloaded:
         print(f)
+
+    print("\nPROMPT_FOR_AI:")
+
+    print(
+        f"""
+PRODUCT_CODE: {product_code}
+
+PRODUCT_DESCRIPTION:
+{product_msg.message}
+
+HIDDEN_PRICE:
+{price}
+
+TASK:
+Create a powerful Facebook fashion post in Egyptian Arabic.
+Do not mention the price.
+Create urgency.
+Highlight fabric quality.
+Highlight style.
+Add call to action.
+Use emojis.
+Mention product code only.
+"""
+    )
 
     print("========================\n")
 
