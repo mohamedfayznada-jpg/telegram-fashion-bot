@@ -58,6 +58,23 @@ STRICT RULES:
 - NEVER invent product details from image analysis.
 - customer_questions must be answerable from existing product data only.
 
+Image selection is extremely important.
+
+Analyze all images carefully.
+
+Rank images by:
+
+- clarity
+- lighting
+- composition
+- product visibility
+- sales potential
+
+Do not simply return the first images.
+
+Choose the strongest images for Facebook marketing.
+
+If two images are similar, keep only the better one.
 Never ask about information that
 does not exist in Product description.
 
