@@ -2,16 +2,25 @@ import os
 import re
 import json
 import base64
+import requests
+
 from telethon import TelegramClient
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 
+OPENROUTER_API_KEY = os.environ[
+    "OPENROUTER_API_KEY"
+]
+
 session_data = base64.b64decode(
     os.environ["TELEGRAM_SESSION"]
 )
 
-with open("telegram_session.session", "wb") as f:
+with open(
+    "telegram_session.session",
+    "wb"
+) as f:
     f.write(session_data)
 
 client = TelegramClient(
@@ -39,6 +48,7 @@ def is_admin_message(text):
     text = text.lower()
 
     for word in IGNORE_WORDS:
+
         if word.lower() in text:
             return True
 
@@ -90,13 +100,36 @@ def clean_description(text):
         flags=re.IGNORECASE
     )
 
-    text = re.sub(
-        r"\n\d+\s*$",
-        "",
-        text
+    return text.strip()
+
+
+def generate_facebook_post(prompt):
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization":
+                f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type":
+                "application/json"
+        },
+        json={
+            "model": "openai/gpt-4.1",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        },
+        timeout=120
     )
 
-    return text.strip()
+    response.raise_for_status()
+
+    data = response.json()
+
+    return data["choices"][0]["message"]["content"]
 
 
 async def main():
@@ -105,6 +138,234 @@ async def main():
 
     channel = await client.get_entity(
         "yasminstoriii"
+    )
+
+    messages = await client.get_messages(
+        channel,
+        limit=150
+    )
+
+    product_msg = None
+
+    for msg in messages:
+
+        text = (
+            msg.message or ""
+        ).strip()
+
+        if not text:
+            continue
+
+        if is_admin_message(text):
+            continue
+
+        product_msg = msg
+        break
+
+    if not product_msg:
+
+        print("NO PRODUCT FOUND")
+        return
+
+    image_messages = []
+
+    product_index = None
+
+    for i, msg in enumerate(messages):
+
+        if msg.id == product_msg.id:
+            product_index = i
+            break
+
+    for i in range(
+        product_index + 1,
+        len(messages)
+    ):
+
+        msg = messages[i]
+
+        text = (
+            msg.message or ""
+        ).strip()
+
+        if text:
+            break
+
+        if msg.media:
+            image_messages.append(msg)
+
+    image_messages.reverse()
+
+    os.makedirs(
+        "downloads",
+        exist_ok=True
+    )
+
+    downloaded = []
+
+    for msg in image_messages:
+
+        filename = await client.download_media(
+            msg,
+            file=f"downloads/{msg.id}"
+        )
+
+        downloaded.append(filename)
+
+    price = extract_price(
+        product_msg.message
+    )
+
+    product_code = extract_product_code(
+        product_msg.message
+    )
+
+    description = clean_description(
+        product_msg.message
+    )
+
+    product_data = {
+        "product_id":
+            product_msg.id,
+
+        "product_code":
+            product_code,
+
+        "price":
+            price,
+
+        "description":
+            description,
+
+        "images":
+            downloaded
+    }
+
+    with open(
+        "product.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            product_data,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    with open(
+        "price_db.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            {
+                product_code: price
+            },
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    prompt = f"""
+أنت خبير تسويق محترف في الملابس النسائية.
+
+اكتب بوست فيسبوك احترافي باللهجة المصرية.
+
+بيانات المنتج:
+
+الكود:
+{product_code}
+
+الوصف:
+{description}
+
+قواعد مهمة:
+
+- ممنوع ذكر السعر.
+- اذكر الكود فقط.
+- ركز على الشياكة.
+- ركز على جودة الخامة.
+- استخدم ايموجي.
+- اعمل Call To Action قوي.
+- اطلب من العميل إرسال الكود لمعرفة السعر.
+- اجعل البوست جاهز للنشر.
+"""
+
+    with open(
+        "post_prompt.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+        f.write(prompt)
+
+    print("\nGENERATING_FACEBOOK_POST...\n")
+
+    facebook_post = generate_facebook_post(
+        prompt
+    )
+
+    with open(
+        "facebook_post.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        f.write(
+            facebook_post
+        )
+
+    print(
+        "========================"
+    )
+
+    print(
+        "PRODUCT_ID:"
+    )
+    print(
+        product_msg.id
+    )
+
+    print(
+        "\nPRODUCT_CODE:"
+    )
+    print(
+        product_code
+    )
+
+    print(
+        "\nPRICE:"
+    )
+    print(
+        price
+    )
+
+    print(
+        "\nIMAGES_COUNT:"
+    )
+    print(
+        len(downloaded)
+    )
+
+    print(
+        "\nFACEBOOK_POST:\n"
+    )
+
+    print(
+        facebook_post
+    )
+
+    print(
+        "\n========================"
+    )
+
+
+with client:
+    client.loop.run_until_complete(
+        main()
+    )        "yasminstoriii"
     )
 
     messages = await client.get_messages(
