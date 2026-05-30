@@ -27,9 +27,11 @@ for file in sorted(os.listdir(folder)):
 
 if len(images) == 0:
 
-    raise Exception(
-        "No images found"
-    )
+    print(
+    "No images found"
+)
+
+exit(0)
 
 while len(images) < 4:
 
