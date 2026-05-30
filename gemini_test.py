@@ -27,6 +27,8 @@ for file in product["images"]:
         except Exception:
             pass
 
+available_images = "\n".join(product["images"])
+
 prompt = f"""
 You are an expert Facebook fashion marketer.
 
@@ -36,16 +38,30 @@ Product code:
 Product description:
 {product["description"]}
 
+Available image paths:
+
+{available_images}
+
 IMPORTANT:
 
 - Product description is the primary source of truth.
 - Use images only to improve understanding.
-- Do not invent colors, sizes, fabrics or features not mentioned in the description.
+- Never invent colors, sizes, fabrics or features.
 - Analyze ALL images.
 - Select only the best selling images.
 - Do not select more than 4 images.
 - Avoid duplicate angles.
 - Prefer clear and attractive photos.
+
+VERY IMPORTANT:
+
+best_images must contain ONLY paths from Available image paths.
+
+cover_image must contain ONLY one path from Available image paths.
+
+Do NOT create URLs.
+Do NOT create filenames.
+Do NOT create image numbers.
 
 Return ONLY valid JSON:
 
