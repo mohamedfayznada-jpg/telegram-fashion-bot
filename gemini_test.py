@@ -62,21 +62,55 @@ VERY IMPORTANT:
 
 best_images must contain ONLY paths from Available image paths.
 
+carousel_order must contain ONLY paths from Available image paths.
+
 cover_image must contain ONLY one path from Available image paths.
 
 Do NOT create URLs.
 Do NOT create filenames.
 Do NOT create image numbers.
 
+facebook_post_soft:
+Friendly and elegant post.
+
+facebook_post_sales:
+Strong sales-oriented post with urgency and call to action.
+
+facebook_post_viral:
+Engagement-focused post designed to generate comments and reactions.
+
+selling_points:
+List the strongest selling points.
+
+customer_questions:
+List the most likely customer questions.
+
+carousel_order:
+Return the best image order for Facebook carousel.
+
 Return ONLY valid JSON:
 
 {{
-  "facebook_post": "",
+  "facebook_post_soft": "",
+  "facebook_post_sales": "",
+  "facebook_post_viral": "",
+
   "facebook_post_short": "",
+
   "hashtags": [],
+
   "story_post": "",
+
   "reel_idea": "",
+
+  "selling_points": [],
+
+  "customer_questions": [],
+
+  "carousel_order": [],
+
   "best_images": [],
+
   "cover_image": ""
 }}
 """
@@ -119,13 +153,37 @@ data = json.loads(
 )
 
 with open(
-    "facebook_post.txt",
+    "facebook_post_soft.txt",
     "w",
     encoding="utf-8"
 ) as f:
     f.write(
         data.get(
-            "facebook_post",
+            "facebook_post_soft",
+            ""
+        )
+    )
+
+with open(
+    "facebook_post_sales.txt",
+    "w",
+    encoding="utf-8"
+) as f:
+    f.write(
+        data.get(
+            "facebook_post_sales",
+            ""
+        )
+    )
+
+with open(
+    "facebook_post_viral.txt",
+    "w",
+    encoding="utf-8"
+) as f:
+    f.write(
+        data.get(
+            "facebook_post_viral",
             ""
         )
     )
@@ -164,6 +222,51 @@ with open(
             "reel_idea",
             ""
         )
+    )
+
+with open(
+    "selling_points.json",
+    "w",
+    encoding="utf-8"
+) as f:
+    json.dump(
+        data.get(
+            "selling_points",
+            []
+        ),
+        f,
+        ensure_ascii=False,
+        indent=2
+    )
+
+with open(
+    "customer_questions.json",
+    "w",
+    encoding="utf-8"
+) as f:
+    json.dump(
+        data.get(
+            "customer_questions",
+            []
+        ),
+        f,
+        ensure_ascii=False,
+        indent=2
+    )
+
+with open(
+    "carousel_order.json",
+    "w",
+    encoding="utf-8"
+) as f:
+    json.dump(
+        data.get(
+            "carousel_order",
+            []
+        ),
+        f,
+        ensure_ascii=False,
+        indent=2
     )
 
 os.makedirs(
@@ -212,9 +315,14 @@ print(
 )
 
 print("ai_result.json")
-print("facebook_post.txt")
+print("facebook_post_soft.txt")
+print("facebook_post_sales.txt")
+print("facebook_post_viral.txt")
 print("facebook_post_short.txt")
 print("story_post.txt")
 print("reel_idea.txt")
+print("selling_points.json")
+print("customer_questions.json")
+print("carousel_order.json")
 print("selected_images/")
 print("cover_image.jpg")
