@@ -39,3 +39,4 @@ async def main():
 
 with client:
     client.loop.run_until_complete(main())
+print("RAW_TEXT:", msg.message)
