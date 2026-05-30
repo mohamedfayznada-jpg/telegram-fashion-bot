@@ -56,7 +56,9 @@ IMPORTANT:
 VERY IMPORTANT:
 
 best_images must contain ONLY paths from Available image paths.
+Never mention colors unless they are explicitly written in Product description.
 
+Do not infer colors from images.
 cover_image must contain ONLY one path from Available image paths.
 
 Do NOT create URLs.
