@@ -39,3 +39,7 @@ jobs:
               pip install requests
               pip install google-genai
               pip install pillow
+      - name: Gemini Test
+      env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          run: python gemini_test.py
