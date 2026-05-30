@@ -13,17 +13,19 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           pip install telethon
+          pip install requests
 
       - name: Read channel
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
           TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: python read_channel.py
 
       - name: Upload Images
@@ -31,7 +33,3 @@ jobs:
         with:
           name: product-images
           path: downloads/
-      - name: Install dependencies
-        run: |
-               pip install telethon
-               pip install requests
