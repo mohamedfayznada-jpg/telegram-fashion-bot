@@ -56,6 +56,10 @@ STRICT RULES:
 - NEVER invent stock availability.
 - NEVER invent customer benefits not explicitly mentioned.
 - NEVER invent product details from image analysis.
+- customer_questions must be answerable from existing product data only.
+
+Never ask about information that
+does not exist in Product description.
 
 If information is not written in Product description,
 DO NOT mention it.
