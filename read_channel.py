@@ -162,11 +162,11 @@ async def main():
 
     product_msg = None
 
-for msg in messages:
+    for msg in messages:
 
-    text = (
+        text = (
         msg.message or ""
-    ).strip()
+        ).strip()
 
     if not text:
         continue
