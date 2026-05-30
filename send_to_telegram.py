@@ -43,7 +43,7 @@ if os.path.exists("marketing_collage.jpg"):
     with open(
     "marketing_collage.jpg",
     "rb"
-) as photo:
+    ) as photo:
 
 r = requests.post(
     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
