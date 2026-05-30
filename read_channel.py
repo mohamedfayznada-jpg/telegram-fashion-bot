@@ -169,16 +169,16 @@ async def main():
         ).strip()
 
         if not text:
-        continue
+               continue
 
         if len(text) < 20:
-        continue
+           continue
 
         if is_admin_message(text):
-        continue
+           continue
 
         if not msg.media:
-        continue
+              continue
 
         product_msg = msg
         break
