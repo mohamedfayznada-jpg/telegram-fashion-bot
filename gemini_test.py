@@ -73,6 +73,20 @@ facebook posts must never mention:
 - free shipping
 - colors unless explicitly written
 - features not present in description
+
+IMPORTANT LANGUAGE RULE:
+
+All generated content must be written in Egyptian Arabic.
+
+facebook_post_soft must be Egyptian Arabic.
+facebook_post_sales must be Egyptian Arabic.
+facebook_post_viral must be Egyptian Arabic.
+facebook_post_short must be Egyptian Arabic.
+story_post must be Egyptian Arabic.
+reel_idea must be Egyptian Arabic.
+
+Do not use English except product code.
+
 VERY IMPORTANT:
 
 best_images must contain ONLY paths from Available image paths.
@@ -166,7 +180,11 @@ clean_result = clean_result.strip()
 data = json.loads(
     clean_result
 )
+if len(data.get("best_images", [])) > 4:
+    data["best_images"] = data["best_images"][:4]
 
+if len(data.get("carousel_order", [])) > 4:
+    data["carousel_order"] = data["carousel_order"][:4]
 with open(
     "facebook_post_soft.txt",
     "w",
