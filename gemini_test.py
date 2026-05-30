@@ -185,6 +185,40 @@ try:
     data = json.loads(
         clean_result
     )
+    print("\nBEST_IMAGES_FROM_GEMINI:\n")
+
+for image_path in data.get(
+    "best_images",
+    []
+):
+
+    print(
+        f"\nCHECKING: {image_path}"
+    )
+
+    if os.path.exists(
+        image_path
+    ):
+
+        print(
+            "FOUND"
+        )
+
+        shutil.copy(
+            image_path,
+            os.path.join(
+                "selected_images",
+                os.path.basename(
+                    image_path
+                )
+            )
+        )
+
+    else:
+
+        print(
+            "NOT FOUND"
+        )
 
 except Exception as e:
 
