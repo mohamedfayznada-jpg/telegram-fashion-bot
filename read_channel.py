@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import base64
 from telethon import TelegramClient
 
@@ -165,6 +166,27 @@ async def main():
         product_msg.message
     )
 
+    product_data = {
+        "product_id": product_msg.id,
+        "product_code": product_code,
+        "price": price,
+        "description": product_msg.message,
+        "images": downloaded
+    }
+
+    with open(
+        "product.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            product_data,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
     print("\n========================")
 
     print("PRODUCT_ID:")
@@ -187,30 +209,15 @@ async def main():
     for file in downloaded:
         print(file)
 
-    print("\nPROMPT_FOR_AI:")
+    print("\nJSON_OUTPUT:")
 
-    print(f"""
-PRODUCT_CODE: {product_code}
-
-PRODUCT_DESCRIPTION:
-{product_msg.message}
-
-HIDDEN_PRICE:
-{price}
-
-TASK:
-Create a powerful Facebook fashion post in Egyptian Arabic.
-
-Rules:
-- Do NOT mention the price.
-- Mention only product code.
-- Create urgency.
-- Highlight fabric quality.
-- Highlight style.
-- Use emojis.
-- Add call to action.
-- Make it ready for Facebook publishing.
-""")
+    print(
+        json.dumps(
+            product_data,
+            ensure_ascii=False,
+            indent=2
+        )
+    )
 
     print("========================\n")
 
