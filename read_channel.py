@@ -1,5 +1,4 @@
 import os
-import re
 import base64
 from telethon import TelegramClient
 
@@ -20,54 +19,6 @@ client = TelegramClient(
 )
 
 
-IGNORED_WORDS = [
-    "السلام عليكم",
-    "تم تحويل",
-    "العمولات",
-    "كل سنه",
-    "كل سنة",
-    "عيد",
-    "❤️",
-    "❤"
-]
-
-
-def is_product_text(text):
-    text = text.strip()
-
-    if len(text) < 10:
-        return False
-
-    for word in IGNORED_WORDS:
-        if word in text:
-            return False
-
-    return True
-
-
-def extract_price(text):
-
-    patterns = [
-        r'(\d+)\s*جنيه',
-        r'(\d+)\s*ج',
-        r'(\d+)\s*ج\.م',
-        r'(\d+)\s*EGP',
-        r'السعر\s*:?\s*(\d+)'
-    ]
-
-    for pattern in patterns:
-        match = re.search(
-            pattern,
-            text,
-            re.IGNORECASE
-        )
-
-        if match:
-            return match.group(1)
-
-    return ""
-
-
 async def main():
 
     await client.start()
@@ -78,60 +29,26 @@ async def main():
 
     messages = await client.get_messages(
         channel,
-        limit=100
+        limit=30
     )
 
-    product_msg = None
+    print("\nSTART_MESSAGES\n")
 
     for msg in messages:
 
-        text = (msg.message or "").strip()
+        print("=" * 60)
 
-        if is_product_text(text):
-            product_msg = msg
-            break
-
-    if not product_msg:
-        print("NO PRODUCT FOUND")
-        return
-
-    product_text = product_msg.message
-
-    images = []
-
-    found_description = False
-
-    for msg in messages:
-
-        if msg.id == product_msg.id:
-            found_description = True
-            continue
-
-        if not found_description:
-            continue
+        print("ID:", msg.id)
 
         text = (msg.message or "").strip()
 
-        if text:
-            break
+        print("TEXT:")
+        print(repr(text))
 
-        if msg.media:
-            images.append(msg.id)
+        print("MEDIA:")
+        print(msg.media is not None)
 
-    print("\n========================")
-    print("PRODUCT_TEXT:")
-    print(product_text)
-
-    print("\nPRICE:")
-    print(extract_price(product_text))
-
-    print("\nIMAGES_COUNT:")
-    print(len(images))
-
-    print("\nIMAGE_IDS:")
-    print(images)
-
-    print("========================\n")
+    print("\nEND_MESSAGES\n")
 
 
 with client:
