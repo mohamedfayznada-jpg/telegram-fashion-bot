@@ -1,40 +1,24 @@
-import os
-import base64
-import asyncio
-from telethon import TelegramClient
+name: Read Telegram Channel
 
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
+on:
+  workflow_dispatch:
 
-session_data = base64.b64decode(
-    os.environ["TELEGRAM_SESSION"]
-)
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-with open("telegram_session.session", "wb") as f:
-    f.write(session_data)
+    steps:
+      - uses: actions/checkout@v4
 
-client = TelegramClient(
-    "telegram_session",
-    API_ID,
-    API_HASH
-)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-async def main():
-    await client.start()
+      - run: pip install telethon
 
-    channel = await client.get_entity(
-        "yasminstoriii"
-    )
-
-    messages = await client.get_messages(
-        channel,
-        limit=1
-    )
-
-    msg = messages[0]
-
-    print("TEXT:")
-    print(msg.message)
-
-with client:
-    client.loop.run_until_complete(main())
+      - name: Read channel
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+        run: python read_channel.py
