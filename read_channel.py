@@ -36,7 +36,7 @@ async def main():
         print("ID:", msg.id)
         print("TEXT:", repr(msg.message))
         print("MEDIA:", msg.media is not None)
-
+print("RAW_TEXT:", msg.message)
 with client:
     client.loop.run_until_complete(main())
-print("RAW_TEXT:", msg.message)
+
