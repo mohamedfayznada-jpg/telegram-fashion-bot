@@ -45,19 +45,34 @@ Available image paths:
 
 {available_images}
 
-IMPORTANT:
+STRICT RULES:
 
-- Product description is the primary source of truth.
-- Use images only to improve understanding.
-- Never invent colors, sizes, fabrics or features.
-- Never mention colors unless they are explicitly written in Product description.
-- Do not infer colors from images.
-- Analyze ALL images.
-- Select only the best selling images.
-- Do not select more than 4 images.
-- Avoid duplicate angles.
-- Prefer clear and attractive photos.
+- Product description is the ONLY source of truth.
+- Images are used only for selecting the best photos.
+- NEVER invent colors.
+- NEVER invent sizes.
+- NEVER invent materials.
+- NEVER invent discounts.
+- NEVER invent offers.
+- NEVER invent stock availability.
+- NEVER invent customer benefits not explicitly mentioned.
+- NEVER invent product details from image analysis.
 
+If information is not written in Product description,
+DO NOT mention it.
+
+customer_questions must only contain questions that can be answered from existing product data.
+
+selling_points must only contain facts explicitly written in Product description.
+
+facebook posts must never mention:
+
+- discounts
+- offers
+- limited stock
+- free shipping
+- colors unless explicitly written
+- features not present in description
 VERY IMPORTANT:
 
 best_images must contain ONLY paths from Available image paths.
