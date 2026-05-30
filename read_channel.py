@@ -3,17 +3,24 @@ import re
 import json
 import base64
 import requests
+
 from telethon import TelegramClient
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
-OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+
+OPENROUTER_API_KEY = os.environ[
+    "OPENROUTER_API_KEY"
+]
 
 session_data = base64.b64decode(
     os.environ["TELEGRAM_SESSION"]
 )
 
-with open("telegram_session.session", "wb") as f:
+with open(
+    "telegram_session.session",
+    "wb"
+) as f:
     f.write(session_data)
 
 client = TelegramClient(
@@ -37,9 +44,11 @@ IGNORE_WORDS = [
 
 
 def is_admin_message(text):
+
     text = text.lower()
 
     for word in IGNORE_WORDS:
+
         if word.lower() in text:
             return True
 
@@ -55,6 +64,7 @@ def extract_price(text):
     ]
 
     for pattern in patterns:
+
         match = re.search(
             pattern,
             text,
@@ -98,11 +108,13 @@ def generate_facebook_post(prompt):
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
+            "Authorization":
+                f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type":
+                "application/json"
         },
         json={
-            "model": "openai/gpt-4.1",
+            "model": "openai/gpt-4o-mini",
             "messages": [
                 {
                     "role": "user",
@@ -112,6 +124,9 @@ def generate_facebook_post(prompt):
         },
         timeout=120
     )
+
+    print("\nOPENROUTER_RESPONSE:\n")
+    print(response.text)
 
     response.raise_for_status()
 
@@ -137,7 +152,9 @@ async def main():
 
     for msg in messages:
 
-        text = (msg.message or "").strip()
+        text = (
+            msg.message or ""
+        ).strip()
 
         if not text:
             continue
@@ -149,6 +166,7 @@ async def main():
         break
 
     if not product_msg:
+
         print("NO PRODUCT FOUND")
         return
 
@@ -163,6 +181,7 @@ async def main():
             break
 
     if product_index is None:
+
         print("PRODUCT INDEX NOT FOUND")
         return
 
@@ -173,7 +192,9 @@ async def main():
 
         msg = messages[i]
 
-        text = (msg.message or "").strip()
+        text = (
+            msg.message or ""
+        ).strip()
 
         if text:
             break
@@ -212,11 +233,20 @@ async def main():
     )
 
     product_data = {
-        "product_id": product_msg.id,
-        "product_code": product_code,
-        "price": price,
-        "description": description,
-        "images": downloaded
+        "product_id":
+            product_msg.id,
+
+        "product_code":
+            product_code,
+
+        "price":
+            price,
+
+        "description":
+            description,
+
+        "images":
+            downloaded
     }
 
     with open(
@@ -239,7 +269,9 @@ async def main():
     ) as f:
 
         json.dump(
-            {product_code: price},
+            {
+                product_code: price
+            },
             f,
             ensure_ascii=False,
             indent=2
@@ -256,9 +288,16 @@ async def main():
 الوصف:
 {description}
 
-ممنوع ذكر السعر.
-اذكر الكود فقط.
-اطلب من العميل إرسال الكود لمعرفة السعر.
+قواعد مهمة:
+
+- ممنوع ذكر السعر.
+- اذكر الكود فقط.
+- ركز على الشياكة.
+- ركز على جودة الخامة.
+- استخدم ايموجي.
+- اعمل Call To Action قوي.
+- اطلب من العميل إرسال الكود لمعرفة السعر.
+- اجعل البوست جاهز للنشر.
 """
 
     with open(
@@ -266,9 +305,12 @@ async def main():
         "w",
         encoding="utf-8"
     ) as f:
+
         f.write(prompt)
 
-    print("GENERATING_FACEBOOK_POST...")
+    print(
+        "\nGENERATING_FACEBOOK_POST...\n"
+    )
 
     facebook_post = generate_facebook_post(
         prompt
@@ -279,10 +321,54 @@ async def main():
         "w",
         encoding="utf-8"
     ) as f:
-        f.write(facebook_post)
 
-    print("\nFACEBOOK_POST:\n")
-    print(facebook_post)
+        f.write(
+            facebook_post
+        )
+
+    print(
+        "\n========================"
+    )
+
+    print(
+        "PRODUCT_ID:"
+    )
+    print(
+        product_msg.id
+    )
+
+    print(
+        "\nPRODUCT_CODE:"
+    )
+    print(
+        product_code
+    )
+
+    print(
+        "\nPRICE:"
+    )
+    print(
+        price
+    )
+
+    print(
+        "\nIMAGES_COUNT:"
+    )
+    print(
+        len(downloaded)
+    )
+
+    print(
+        "\nFACEBOOK_POST:\n"
+    )
+
+    print(
+        facebook_post
+    )
+
+    print(
+        "\n========================"
+    )
 
 
 with client:
