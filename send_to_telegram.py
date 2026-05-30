@@ -27,13 +27,34 @@ for file in files_to_read:
 
             caption += f.read()
 
-requests.post(
+r = requests.post(
     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
     data={
         "chat_id": CHAT_ID,
         "text": caption[:4000]
     }
 )
+
+print("\nSEND MESSAGE RESPONSE:\n")
+print(r.text)
+
+if os.path.exists("marketing_collage.jpg"):
+
+    with open(
+    "marketing_collage.jpg",
+    "rb"
+) as photo:
+
+r = requests.post(
+    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+    data={
+        "chat_id": CHAT_ID,
+        "text": caption[:4000]
+    }
+)
+
+print("\nSEND MESSAGE RESPONSE:\n")
+print(r.text)
 
 if os.path.exists("marketing_collage.jpg"):
 
@@ -42,7 +63,7 @@ if os.path.exists("marketing_collage.jpg"):
         "rb"
     ) as photo:
 
-        requests.post(
+        r = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
             data={
                 "chat_id": CHAT_ID
@@ -51,5 +72,14 @@ if os.path.exists("marketing_collage.jpg"):
                 "photo": photo
             }
         )
+
+        print("\nSEND PHOTO RESPONSE:\n")
+        print(r.text)
+
+else:
+
+    print(
+        "\nmarketing_collage.jpg NOT FOUND\n"
+    )
 
 print("SENT TO TELEGRAM")
