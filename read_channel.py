@@ -182,11 +182,6 @@ async def main():
         print("NO PRODUCT FOUND")
         return
 
-    if not product_msg:
-
-        print("NO PRODUCT FOUND")
-        return
-
     image_messages = []
 
     product_index = None
