@@ -36,6 +36,11 @@ jobs:
         run: python gemini_test.py
       - name: Create Collage
         run: python create_collage.py
+      - name: Send To Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python send_to_telegram.py
       - name: Upload Images
         uses: actions/upload-artifact@v4
         with:
