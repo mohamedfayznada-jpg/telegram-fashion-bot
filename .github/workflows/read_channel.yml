@@ -31,3 +31,7 @@ jobs:
         with:
           name: product-images
           path: downloads/
+      - name: Install dependencies
+        run: |
+               pip install telethon
+               pip install requests
