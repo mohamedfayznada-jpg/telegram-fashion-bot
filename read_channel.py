@@ -20,7 +20,33 @@ client = TelegramClient(
 )
 
 
+IGNORED_WORDS = [
+    "السلام عليكم",
+    "تم تحويل",
+    "العمولات",
+    "كل سنه",
+    "كل سنة",
+    "عيد",
+    "❤️",
+    "❤"
+]
+
+
+def is_product_text(text):
+    text = text.strip()
+
+    if len(text) < 10:
+        return False
+
+    for word in IGNORED_WORDS:
+        if word in text:
+            return False
+
+    return True
+
+
 def extract_price(text):
+
     patterns = [
         r'(\d+)\s*جنيه',
         r'(\d+)\s*ج',
@@ -52,36 +78,32 @@ async def main():
 
     messages = await client.get_messages(
         channel,
-        limit=30
+        limit=100
     )
 
-    product_text = None
-    product_message_id = None
+    product_msg = None
 
-    # ابحث عن أول رسالة نصية حقيقية
     for msg in messages:
 
         text = (msg.message or "").strip()
 
-        if text:
-
-            product_text = text
-            product_message_id = msg.id
+        if is_product_text(text):
+            product_msg = msg
             break
 
-    if not product_text:
-
+    if not product_msg:
         print("NO PRODUCT FOUND")
         return
+
+    product_text = product_msg.message
 
     images = []
 
     found_description = False
 
-    # اجمع الصور الموجودة فوق الوصف
     for msg in messages:
 
-        if msg.id == product_message_id:
+        if msg.id == product_msg.id:
             found_description = True
             continue
 
@@ -90,44 +112,18 @@ async def main():
 
         text = (msg.message or "").strip()
 
-        # وصلنا لوصف المنتج السابق
         if text:
             break
 
         if msg.media:
             images.append(msg.id)
 
-    price = extract_price(product_text)
-
-    clean_text = product_text
-
-    clean_text = re.sub(
-        r'\d+\s*جنيه',
-        '',
-        clean_text,
-        flags=re.IGNORECASE
-    )
-
-    clean_text = re.sub(
-        r'\d+\s*ج',
-        '',
-        clean_text,
-        flags=re.IGNORECASE
-    )
-
-    clean_text = re.sub(
-        r'السعر\s*:?\s*\d+',
-        '',
-        clean_text,
-        flags=re.IGNORECASE
-    )
-
-    print("\n======================")
+    print("\n========================")
     print("PRODUCT_TEXT:")
-    print(clean_text)
+    print(product_text)
 
     print("\nPRICE:")
-    print(price)
+    print(extract_price(product_text))
 
     print("\nIMAGES_COUNT:")
     print(len(images))
@@ -135,7 +131,7 @@ async def main():
     print("\nIMAGE_IDS:")
     print(images)
 
-    print("======================\n")
+    print("========================\n")
 
 
 with client:
