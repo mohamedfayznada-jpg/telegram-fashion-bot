@@ -2,16 +2,11 @@ import os
 import re
 import json
 import base64
-import requests
 
 from telethon import TelegramClient
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
-
-OPENROUTER_API_KEY = os.environ[
-    "OPENROUTER_API_KEY"
-]
 
 session_data = base64.b64decode(
     os.environ["TELEGRAM_SESSION"]
@@ -101,38 +96,6 @@ def clean_description(text):
     )
 
     return text.strip()
-
-
-def generate_facebook_post(prompt):
-
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization":
-                f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type":
-                "application/json"
-        },
-        json={
-            "model": "openai/gpt-4o-mini",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        },
-        timeout=120
-    )
-
-    print("\nOPENROUTER_RESPONSE:\n")
-    print(response.text)
-
-    response.raise_for_status()
-
-    data = response.json()
-
-    return data["choices"][0]["message"]["content"]
 
 
 async def main():
@@ -233,20 +196,11 @@ async def main():
     )
 
     product_data = {
-        "product_id":
-            product_msg.id,
-
-        "product_code":
-            product_code,
-
-        "price":
-            price,
-
-        "description":
-            description,
-
-        "images":
-            downloaded
+        "product_id": product_msg.id,
+        "product_code": product_code,
+        "price": price,
+        "description": description,
+        "images": downloaded
     }
 
     with open(
@@ -278,26 +232,18 @@ async def main():
         )
 
     prompt = f"""
-أنت خبير تسويق محترف في الملابس النسائية.
-
-اكتب بوست فيسبوك احترافي باللهجة المصرية.
-
 الكود:
 {product_code}
 
 الوصف:
 {description}
 
-قواعد مهمة:
-
-- ممنوع ذكر السعر.
-- اذكر الكود فقط.
-- ركز على الشياكة.
-- ركز على جودة الخامة.
-- استخدم ايموجي.
-- اعمل Call To Action قوي.
-- اطلب من العميل إرسال الكود لمعرفة السعر.
-- اجعل البوست جاهز للنشر.
+اكتب:
+1- Facebook Post
+2- Hashtags
+3- Story Post
+4- Reel Idea
+5- Best Images
 """
 
     with open(
@@ -308,67 +254,27 @@ async def main():
 
         f.write(prompt)
 
-    print(
-        "\nGENERATING_FACEBOOK_POST...\n"
-    )
+    print("\n========================")
 
-    facebook_post = generate_facebook_post(
-        prompt
-    )
+    print("PRODUCT_ID:")
+    print(product_msg.id)
 
-    with open(
-        "facebook_post.txt",
-        "w",
-        encoding="utf-8"
-    ) as f:
+    print("\nPRODUCT_CODE:")
+    print(product_code)
 
-        f.write(
-            facebook_post
-        )
+    print("\nPRICE:")
+    print(price)
 
-    print(
-        "\n========================"
-    )
+    print("\nIMAGES_COUNT:")
+    print(len(downloaded))
 
-    print(
-        "PRODUCT_ID:"
-    )
-    print(
-        product_msg.id
-    )
+    print("\nFILES_CREATED:")
 
-    print(
-        "\nPRODUCT_CODE:"
-    )
-    print(
-        product_code
-    )
+    print("product.json")
+    print("price_db.json")
+    print("post_prompt.txt")
 
-    print(
-        "\nPRICE:"
-    )
-    print(
-        price
-    )
-
-    print(
-        "\nIMAGES_COUNT:"
-    )
-    print(
-        len(downloaded)
-    )
-
-    print(
-        "\nFACEBOOK_POST:\n"
-    )
-
-    print(
-        facebook_post
-    )
-
-    print(
-        "\n========================"
-    )
+    print("\n========================")
 
 
 with client:
