@@ -50,6 +50,44 @@ def is_admin_message(text):
     return False
 
 
+def extract_fabric(text):
+
+    match = re.search(
+        r"الخامه\s*👈\s*(.+)",
+        text
+    )
+
+    if match:
+        return match.group(1).strip()
+
+    return ""
+
+
+def extract_size(text):
+
+    match = re.search(
+        r"المقاس\s*👈\s*(.+)",
+        text
+    )
+
+    if match:
+        return match.group(1).strip()
+
+    return ""
+
+
+def extract_product_type(text):
+
+    match = re.search(
+        r"الموديل\s*👈\s*(.+)",
+        text
+    )
+
+    if match:
+        return match.group(1).strip()
+
+    return ""
+
 def extract_price(text):
 
     patterns = [
