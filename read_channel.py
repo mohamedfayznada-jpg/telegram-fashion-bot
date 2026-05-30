@@ -240,6 +240,32 @@ async def main():
         "description": description,
         "images": downloaded
     }
+    product_summary = {
+        "product_code": product_code,
+        "product_type": extract_product_type(
+            product_msg.message
+        ),
+        "fabric": extract_fabric(
+            product_msg.message
+        ),
+        "size": extract_size(
+            product_msg.message
+        ),
+        "price": price
+    }
+
+    with open(
+        "product_summary.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            product_summary,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
 
     with open(
         "product.json",
