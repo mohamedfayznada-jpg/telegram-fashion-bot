@@ -223,15 +223,38 @@ async def main():
 
     downloaded = []
 
+    ALLOWED_EXTENSIONS = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    ]
+
     for msg in image_messages:
 
-        filename = await client.download_media(
-            msg,
-            file=f"downloads/{msg.id}"
+    filename = await client.download_media(
+        msg,
+        file=f"downloads/{msg.id}"
+    )
+
+        if not filename:
+            continue
+
+    ext = os.path.splitext(
+        filename
+    )[1].lower()
+
+        if ext not in ALLOWED_EXTENSIONS:
+
+        print(
+            f"SKIPPED NON IMAGE: {filename}"
         )
 
-        downloaded.append(filename)
+            continue
 
+    downloaded.append(
+        filename
+    )
     price = extract_price(
         product_msg.message
     )
