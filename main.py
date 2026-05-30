@@ -1,6 +1,6 @@
 from telegram import Bot
 
-BOT_TOKEN = "PUT_BOT_TOKEN"
+BOT_TOKEN = "8874494543:AAG5Xt4nuEkSWIMt4DHwSFHoDB6hh9DZWMI"
 CHAT_ID = "823684938"
 
 bot = Bot(token=BOT_TOKEN)
