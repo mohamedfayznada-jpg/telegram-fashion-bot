@@ -45,10 +45,24 @@ jobs:
         with:
           name: marketing-package
           path: |
-            ai_result.json
-            facebook_post.txt
-            facebook_post_short.txt
-            story_post.txt
-            reel_idea.txt
-            cover_image.jpg
-            selected_images/
+            product.json
+product_summary.json
+price_db.json
+
+ai_result.json
+marketing_package.json
+
+facebook_post_soft.txt
+facebook_post_sales.txt
+facebook_post_viral.txt
+facebook_post_short.txt
+
+story_post.txt
+reel_idea.txt
+
+selling_points.json
+customer_questions.json
+carousel_order.json
+
+cover_image.jpg
+selected_images/
