@@ -3,9 +3,6 @@ import json
 import shutil
 from PIL import Image
 from google import genai
-PROCESSED_FILE = (
-    "processed_products.json"
-)
 client = genai.Client(
     api_key=os.environ["GEMINI_API_KEY"]
 )
