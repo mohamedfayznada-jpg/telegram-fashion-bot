@@ -34,7 +34,18 @@ IGNORE_WORDS = [
     "قاهره",
     "جيزه",
     "كل سنه",
-    "كل سنة"
+    "كل سنة",
+
+    "عيد",
+    "العيد",
+    "اجازة",
+    "إجازة",
+    "استئناف العمل",
+    "الشحن",
+    "مكتب",
+    "بداية جديدة",
+    "كل عام وانتم بخير",
+    "كل عام وأنتم بخير"
 ]
 
 
@@ -161,6 +172,9 @@ async def main():
             continue
 
         if is_admin_message(text):
+            continue
+        
+        if not msg.media:
             continue
 
         product_msg = msg
