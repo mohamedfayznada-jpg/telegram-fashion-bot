@@ -164,21 +164,24 @@ async def main():
 
     for msg in messages:
 
-        text = (
-            msg.message or ""
-        ).strip()
+    text = (
+        msg.message or ""
+    ).strip()
 
-        if not text:
-            continue
+    if not text:
+        continue
 
-        if is_admin_message(text):
-            continue
-        
-        if not msg.media:
-            continue
+    if len(text) < 20:
+        continue
 
-        product_msg = msg
-        break
+    if is_admin_message(text):
+        continue
+
+    if not msg.media:
+        continue
+
+    product_msg = msg
+    break
 
     if not product_msg:
 
