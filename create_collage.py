@@ -1,9 +1,14 @@
 from PIL import Image
 import os
 
-images = []
-
 folder = "selected_images"
+
+if not os.path.exists(folder):
+    raise Exception(
+        "selected_images folder not found"
+    )
+
+images = []
 
 for file in sorted(os.listdir(folder)):
 
@@ -20,17 +25,21 @@ for file in sorted(os.listdir(folder)):
     except Exception:
         pass
 
-if len(images) < 4:
+if len(images) == 0:
 
     raise Exception(
-        "Need at least 4 images"
+        "No images found"
     )
 
-size = (1200, 1200)
+while len(images) < 4:
+
+    images.append(
+        images[-1].copy()
+    )
 
 canvas = Image.new(
     "RGB",
-    size,
+    (1200, 1200),
     "white"
 )
 
@@ -61,5 +70,5 @@ canvas.save(
 )
 
 print(
-    "marketing_collage.jpg created"
+    f"Collage created using {len(images[:4])} images"
 )
