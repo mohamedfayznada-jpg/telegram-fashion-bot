@@ -81,6 +81,24 @@ def extract_product_code(text):
     return ""
 
 
+def clean_description(text):
+
+    text = re.sub(
+        r"السعر.*",
+        "",
+        text,
+        flags=re.IGNORECASE
+    )
+
+    text = re.sub(
+        r"\n\d+\s*$",
+        "",
+        text
+    )
+
+    return text.strip()
+
+
 async def main():
 
     await client.start()
@@ -166,11 +184,15 @@ async def main():
         product_msg.message
     )
 
+    clean_text = clean_description(
+        product_msg.message
+    )
+
     product_data = {
         "product_id": product_msg.id,
         "product_code": product_code,
         "price": price,
-        "description": product_msg.message,
+        "description": clean_text,
         "images": downloaded
     }
 
@@ -187,6 +209,55 @@ async def main():
             indent=2
         )
 
+    price_db = {
+        product_code: price
+    }
+
+    with open(
+        "price_db.json",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            price_db,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+    prompt = f"""
+أنت خبير تسويق احترافي في مجال الملابس النسائية.
+
+بيانات المنتج:
+
+الكود:
+{product_code}
+
+الوصف:
+{clean_text}
+
+المطلوب:
+
+1- كتابة بوست فيسبوك احترافي باللهجة المصرية.
+2- عدم ذكر السعر نهائياً.
+3- التركيز على جودة الخامة.
+4- التركيز على الأناقة والشياكة.
+5- إضافة Call To Action قوي.
+6- إضافة Emojis.
+7- إضافة Hashtags.
+8- ذكر كود المنتج فقط.
+9- دعوة العميل لإرسال الكود لمعرفة السعر.
+"""
+
+    with open(
+        "post_prompt.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        f.write(prompt)
+
     print("\n========================")
 
     print("PRODUCT_ID:")
@@ -195,29 +266,17 @@ async def main():
     print("\nPRODUCT_CODE:")
     print(product_code)
 
-    print("\nPRODUCT_TEXT:")
-    print(product_msg.message)
-
     print("\nPRICE:")
     print(price)
 
     print("\nIMAGES_COUNT:")
     print(len(downloaded))
 
-    print("\nDOWNLOADED_FILES:")
+    print("\nFILES_CREATED:")
 
-    for file in downloaded:
-        print(file)
-
-    print("\nJSON_OUTPUT:")
-
-    print(
-        json.dumps(
-            product_data,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
+    print("product.json")
+    print("price_db.json")
+    print("post_prompt.txt")
 
     print("========================\n")
 
