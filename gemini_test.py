@@ -180,6 +180,91 @@ clean_result = clean_result.strip()
 data = json.loads(
     clean_result
 )
+
+marketing_package = {
+    "product_code":
+        product["product_code"],
+
+    "cover_image":
+        data.get(
+            "cover_image",
+            ""
+        ),
+
+    "best_images":
+        data.get(
+            "best_images",
+            []
+        ),
+
+    "facebook_post_soft":
+        data.get(
+            "facebook_post_soft",
+            ""
+        ),
+
+    "facebook_post_sales":
+        data.get(
+            "facebook_post_sales",
+            ""
+        ),
+
+    "facebook_post_viral":
+        data.get(
+            "facebook_post_viral",
+            ""
+        ),
+
+    "facebook_post_short":
+        data.get(
+            "facebook_post_short",
+            ""
+        ),
+
+    "story_post":
+        data.get(
+            "story_post",
+            ""
+        ),
+
+    "reel_idea":
+        data.get(
+            "reel_idea",
+            ""
+        ),
+
+    "selling_points":
+        data.get(
+            "selling_points",
+            []
+        ),
+
+    "customer_questions":
+        data.get(
+            "customer_questions",
+            []
+        ),
+
+    "carousel_order":
+        data.get(
+            "carousel_order",
+            []
+        )
+}
+
+with open(
+    "marketing_package.json",
+    "w",
+    encoding="utf-8"
+) as f:
+
+    json.dump(
+        marketing_package,
+        f,
+        ensure_ascii=False,
+        indent=2
+    )
+
 if len(data.get("best_images", [])) > 4:
     data["best_images"] = data["best_images"][:4]
 
