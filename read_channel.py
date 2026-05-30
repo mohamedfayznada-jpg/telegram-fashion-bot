@@ -31,12 +31,11 @@ async def main():
     )
 
     for i, msg in enumerate(messages):
-    print("=" * 50)
-    print("MESSAGE", i + 1)
-    print("ID:", msg.id)
-    print("TEXT:", repr(msg.message))
-    print("MEDIA:", msg.media is not None)
-    print("RAW_TEXT:", msg.message)
-
+        print("=" * 50)
+        print("MESSAGE", i + 1)
+        print("ID:", msg.id)
+        print("TEXT:", repr(msg.message))
+        print("MEDIA:", msg.media is not None)
+        print("RAW_TEXT:", msg.message)
 with client:
     client.loop.run_until_complete(main())
