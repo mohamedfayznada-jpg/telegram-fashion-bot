@@ -3,7 +3,9 @@ import json
 import shutil
 from PIL import Image
 from google import genai
-
+PROCESSED_FILE = (
+    "processed_products.json"
+)
 client = genai.Client(
     api_key=os.environ["GEMINI_API_KEY"]
 )
@@ -177,9 +179,23 @@ if clean_result.endswith("```"):
 
 clean_result = clean_result.strip()
 
-data = json.loads(
-    clean_result
-)
+try:
+
+    data = json.loads(
+        clean_result
+    )
+
+except Exception as e:
+
+    print(
+        "\nJSON ERROR:\n"
+    )
+
+    print(
+        clean_result
+    )
+
+    raise e
 
 marketing_package = {
     "product_code":
