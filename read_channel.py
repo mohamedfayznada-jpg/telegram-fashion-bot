@@ -294,6 +294,22 @@ async def main():
             ensure_ascii=False,
             indent=2
         )
+        processed[
+    str(product_msg.id)
+] = True
+
+with open(
+    PROCESSED_FILE,
+    "w",
+    encoding="utf-8"
+) as f:
+
+    json.dump(
+        processed,
+        f,
+        ensure_ascii=False,
+        indent=2
+    )
 
     prompt = f"""
 الكود:
