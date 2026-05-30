@@ -99,7 +99,7 @@ async def main():
         print("NO PRODUCT FOUND")
         return
 
-    images = []
+    image_messages = []
 
     found_product = False
 
@@ -118,9 +118,23 @@ async def main():
             break
 
         if msg.media:
-            images.append(msg.id)
+            image_messages.append(msg)
+
+    os.makedirs("downloads", exist_ok=True)
+
+    downloaded = []
+
+    for msg in image_messages:
+
+        filename = await client.download_media(
+            msg,
+            file=f"downloads/{msg.id}"
+        )
+
+        downloaded.append(filename)
 
     print("\n========================")
+
     print("PRODUCT_ID:")
     print(product_msg.id)
 
@@ -131,10 +145,12 @@ async def main():
     print(extract_price(product_msg.message))
 
     print("\nIMAGES_COUNT:")
-    print(len(images))
+    print(len(downloaded))
 
-    print("\nIMAGE_IDS:")
-    print(images)
+    print("\nDOWNLOADED_FILES:")
+
+    for f in downloaded:
+        print(f)
 
     print("========================\n")
 
