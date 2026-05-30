@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -15,7 +16,8 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install telethon
+        run: |
+          pip install telethon
 
       - name: Read channel
         env:
@@ -23,3 +25,9 @@ jobs:
           API_HASH: ${{ secrets.API_HASH }}
           TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
         run: python read_channel.py
+
+      - name: Upload Images
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-images
+          path: downloads/
