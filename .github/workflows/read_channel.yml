@@ -40,3 +40,15 @@ jobs:
         with:
           name: product-images
           path: downloads/
+      - name: Upload Marketing Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketing-package
+          path: |
+            ai_result.json
+            facebook_post.txt
+            facebook_post_short.txt
+            story_post.txt
+            reel_idea.txt
+            cover_image.jpg
+            selected_images/
