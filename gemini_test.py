@@ -185,40 +185,7 @@ try:
     data = json.loads(
         clean_result
     )
-    print("\nBEST_IMAGES_FROM_GEMINI:\n")
-
-for image_path in data.get(
-    "best_images",
-    []
-):
-
-    print(
-        f"\nCHECKING: {image_path}"
-    )
-
-    if os.path.exists(
-        image_path
-    ):
-
-        print(
-            "FOUND"
-        )
-
-        shutil.copy(
-            image_path,
-            os.path.join(
-                "selected_images",
-                os.path.basename(
-                    image_path
-                )
-            )
-        )
-
-    else:
-
-        print(
-            "NOT FOUND"
-        )
+    
 
 except Exception as e:
 
@@ -231,7 +198,27 @@ except Exception as e:
     )
 
     raise e
+    print("\nBEST_IMAGES_FROM_GEMINI:\n")
 
+    for img in data.get(
+    "best_images",
+    []
+):
+    print(img)
+
+    print("\nFILES_IN_DOWNLOADS:\n")
+
+    if os.path.exists("downloads"):
+
+    for f in os.listdir(
+        "downloads"
+    ):
+        print(
+            os.path.join(
+                "downloads",
+                f
+            )
+        )
 marketing_package = {
     "product_code":
         product["product_code"],
