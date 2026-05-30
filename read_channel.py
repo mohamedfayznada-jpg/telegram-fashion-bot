@@ -66,6 +66,20 @@ def extract_price(text):
     return ""
 
 
+def extract_product_code(text):
+
+    lines = text.splitlines()
+
+    for line in reversed(lines):
+
+        line = line.strip()
+
+        if line.isdigit():
+            return f"FS{line}"
+
+    return ""
+
+
 async def main():
 
     await client.start()
@@ -110,6 +124,7 @@ async def main():
             break
 
     if product_index is None:
+        print("PRODUCT INDEX NOT FOUND")
         return
 
     for i in range(product_index + 1, len(messages)):
@@ -126,7 +141,10 @@ async def main():
 
     image_messages.reverse()
 
-    os.makedirs("downloads", exist_ok=True)
+    os.makedirs(
+        "downloads",
+        exist_ok=True
+    )
 
     downloaded = []
 
@@ -143,7 +161,9 @@ async def main():
         product_msg.message
     )
 
-    product_code = f"FS{product_msg.id}"
+    product_code = extract_product_code(
+        product_msg.message
+    )
 
     print("\n========================")
 
@@ -164,13 +184,12 @@ async def main():
 
     print("\nDOWNLOADED_FILES:")
 
-    for f in downloaded:
-        print(f)
+    for file in downloaded:
+        print(file)
 
     print("\nPROMPT_FOR_AI:")
 
-    print(
-        f"""
+    print(f"""
 PRODUCT_CODE: {product_code}
 
 PRODUCT_DESCRIPTION:
@@ -181,15 +200,17 @@ HIDDEN_PRICE:
 
 TASK:
 Create a powerful Facebook fashion post in Egyptian Arabic.
-Do not mention the price.
-Create urgency.
-Highlight fabric quality.
-Highlight style.
-Add call to action.
-Use emojis.
-Mention product code only.
-"""
-    )
+
+Rules:
+- Do NOT mention the price.
+- Mention only product code.
+- Create urgency.
+- Highlight fabric quality.
+- Highlight style.
+- Use emojis.
+- Add call to action.
+- Make it ready for Facebook publishing.
+""")
 
     print("========================\n")
 
