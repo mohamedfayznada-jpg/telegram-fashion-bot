@@ -198,6 +198,27 @@ except Exception as e:
     )
 
     raise e
+    print("\nBEST_IMAGES_FROM_GEMINI:\n")
+
+for img in data.get(
+    "best_images",
+    []
+):
+    print(img)
+
+print("\nFILES_IN_DOWNLOADS:\n")
+
+if os.path.exists("downloads"):
+
+    for f in os.listdir(
+        "downloads"
+    ):
+        print(
+            os.path.join(
+                "downloads",
+                f
+            )
+        )
          
 marketing_package = {
     "product_code":
