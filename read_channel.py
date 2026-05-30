@@ -539,8 +539,11 @@ with client:
     print("price_db.json")
     print("post_prompt.txt")
 
-    print("========================\n")
-
+    print(
+    "\n========================"
+)
 
 with client:
-    client.loop.run_until_complete(main())
+    client.loop.run_until_complete(
+        main()
+    )
