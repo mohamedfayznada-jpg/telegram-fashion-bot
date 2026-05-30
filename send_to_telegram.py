@@ -41,24 +41,6 @@ print(r.text)
 if os.path.exists("marketing_collage.jpg"):
 
     with open(
-    "marketing_collage.jpg",
-    "rb"
-    ) as photo:
-
-r = requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    data={
-        "chat_id": CHAT_ID,
-        "text": caption[:4000]
-    }
-)
-
-print("\nSEND MESSAGE RESPONSE:\n")
-print(r.text)
-
-if os.path.exists("marketing_collage.jpg"):
-
-    with open(
         "marketing_collage.jpg",
         "rb"
     ) as photo:
