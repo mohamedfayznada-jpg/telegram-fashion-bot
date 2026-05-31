@@ -1,9 +1,9 @@
 name: Read Telegram Channel
 
 on:
-  workflow_dispatch: # للتشغيل اليدوي
-  # schedule:
-  #   - cron: '0 */2 * * *' # اختياري: تشغيل تلقائي كل ساعتين مثلاً (امسح الـ # لتفعيله)
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */3 * * *'
 
 jobs:
   test:
@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install telethon requests google-genai pillow
+          pip install telethon requests google-genai pillow arabic-reshaper python-bidi
 
       - name: Read channel
         env:
@@ -37,35 +37,12 @@ jobs:
 
       - name: Send To Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }} # توحيد اسم السيكرت
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}     # توحيد اسم السيكرت
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python send_to_telegram.py
 
-      - name: Upload Images
-        uses: actions/upload-artifact@v4
-        with:
-          name: product-images
-          path: downloads/
-
-      - name: Upload Marketing Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: marketing-package
-          path: |
-            product.json
-            product_summary.json
-            price_db.json
-            ai_result.json
-            marketing_package.json
-            facebook_post_soft.txt
-            facebook_post_sales.txt
-            facebook_post_viral.txt
-            facebook_post_short.txt
-            story_post.txt
-            reel_idea.txt
-            selling_points.json
-            customer_questions.json
-            carousel_order.json
-            cover_image.jpg
-            marketing_collage.jpg
-            selected_images/
+      - name: Publish To Facebook
+        env:
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        run: python publish_to_facebook.py
