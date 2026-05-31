@@ -8,7 +8,8 @@ API_HASH = os.environ["API_HASH"]
 
 from telethon.sessions import StringSession
 
-SESSION_STRING = os.environ["TELEGRAM_SESSION"]
+SESSION_STRING = os.environ["TELEGRAM_SESSION"].strip()
+
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 IGNORE_WORDS = [
