@@ -29,7 +29,7 @@ IGNORE_WORDS = [
 ]
 
 def is_admin_message(text):
-    text = text.lower()a
+    text = text.lower()
     for word in IGNORE_WORDS:
         if word.lower() in text:
             return True
