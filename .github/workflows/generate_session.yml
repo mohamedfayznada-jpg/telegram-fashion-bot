@@ -1,0 +1,69 @@
+name: Generate Telegram Session
+
+on:
+  workflow_dispatch:
+    inputs:
+      phone:
+        description: 'رقم الموبايل (مثال: +2010...)'
+        required: true
+      code:
+        description: 'الكود اللي وصلك على تليجرام (سيبه فاضي أول مرة)'
+        required: false
+      phone_hash:
+        description: 'كود الـ PHONE_HASH (سيبه فاضي أول مرة)'
+        required: false
+
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install telethon
+      - name: Run Login Script
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          PHONE: ${{ github.event.inputs.phone }}
+          CODE: ${{ github.event.inputs.code }}
+          PHONE_HASH: ${{ github.event.inputs.phone_hash }}
+        run: |
+          cat << 'EOF' > login.py
+          import os, asyncio
+          from telethon import TelegramClient
+          from telethon.sessions import StringSession
+
+          API_ID = int(os.environ["API_ID"])
+          API_HASH = os.environ["API_HASH"]
+          PHONE = os.environ["PHONE"].strip()
+          CODE = os.environ.get("CODE", "").strip()
+          PHONE_HASH = os.environ.get("PHONE_HASH", "").strip()
+
+          async def main():
+              client = TelegramClient(StringSession(), API_ID, API_HASH)
+              await client.connect()
+              
+              if not CODE:
+                  result = await client.send_code_request(PHONE)
+                  print("\n" + "="*50)
+                  print("✅ تم إرسال الكود إلى حسابك في تليجرام!")
+                  print("👉 انسخ كود الـ PHONE_HASH اللي تحت ده، وشغل الـ Workflow كمان مرة مع كود تليجرام:")
+                  print(result.phone_code_hash)
+                  print("="*50 + "\n")
+              else:
+                  try:
+                      await client.sign_in(PHONE, CODE, phone_code_hash=PHONE_HASH)
+                      print("\n" + "="*50)
+                      print("✅ تم تسجيل الدخول بنجاح من سيرفرات جيتهاب!")
+                      print("👇 انسخ السطر اللي تحت ده وحطه في الـ Secrets باسم TELEGRAM_SESSION 👇\n")
+                      print(client.session.save())
+                      print("\n" + "="*50)
+                  except Exception as e:
+                      print("❌ حدث خطأ:", e)
+
+          asyncio.run(main())
+          EOF
+          python login.py
