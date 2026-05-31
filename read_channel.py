@@ -1,18 +1,15 @@
 import os
 import re
 import json
-import base64
 from telethon import TelegramClient
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 
-session_data = base64.b64decode(os.environ["TELEGRAM_SESSION"])
+from telethon.sessions import StringSession
 
-with open("telegram_session.session", "wb") as f:
-    f.write(session_data)
-
-client = TelegramClient("telegram_session", API_ID, API_HASH)
+SESSION_STRING = os.environ["TELEGRAM_SESSION"]
+client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 IGNORE_WORDS = [
     "السلام عليكم", "تم تحويل", "العمولات", "اوردر", "يمنشن", "منشن", 
