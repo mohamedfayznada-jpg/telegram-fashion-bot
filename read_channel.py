@@ -12,7 +12,15 @@ from telethon.sessions import StringSession
 SESSION_STRING = os.environ.get("TELEGRAM_SESSION", "").strip()
 
 # الدخول بالجلسة
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+# لازم نبعت نفس بيانات الجهاز الوهمية هنا عشان الجلسة ماتتقفلش
+client = TelegramClient(
+    StringSession(SESSION_STRING), 
+    API_ID, 
+    API_HASH,
+    device_model="Desktop",
+    system_version="Windows 10",
+    app_version="1.0"
+)
 
 IGNORE_WORDS = [
     "السلام عليكم", "تم تحويل", "العمولات", "اوردر", "يمنشن", "منشن", 
@@ -21,7 +29,7 @@ IGNORE_WORDS = [
 ]
 
 def is_admin_message(text):
-    text = text.lower()
+    text = text.lower()a
     for word in IGNORE_WORDS:
         if word.lower() in text:
             return True
