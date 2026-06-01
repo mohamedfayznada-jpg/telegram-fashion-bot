@@ -5,6 +5,36 @@ import asyncio
 import requests
 from telethon.sync import TelegramClient
 from PIL import Image
+from telethon import events
+
+# ==========================================
+# دالة الرد على استعلام الأسعار
+# ==========================================
+@client.on(events.NewMessage(pattern=r'(?i)^(سعر|بكام)\s+([A-Za-z]+\d+)'))
+async def price_query_handler(event):
+    # event.pattern_match بيسحب الكلمة والكود اللي إنت كتبتهم
+    word = event.pattern_match.group(1) # كلمة "سعر" أو "بكام"
+    item_code = event.pattern_match.group(2).upper() # الكود (مثلاً FS816)
+    
+    print(f"🔍 استعلام جديد عن سعر الكود: {item_code}")
+    
+    try:
+        # قراءة قاعدة البيانات
+        with open('prices.json', 'r', encoding='utf-8') as f:
+            prices_db = json.load(f)
+            
+        # البحث والرد
+        if item_code in prices_db:
+            price = prices_db[item_code]
+            reply_msg = f"👗 الموديل كود {item_code}\n💰 السعر المتسجل: {price} جنيه"
+        else:
+            reply_msg = f"⚠️ الكود {item_code} مش متسجل في قاعدة البيانات حالياً."
+            
+    except FileNotFoundError:
+        reply_msg = "❌ ملف الأسعار مش موجود لسه (لم يتم سحب منتجات حتى الآن)."
+        
+    # البوت بيرد عليك في نفس المحادثة
+    await event.reply(reply_msg)
 
 # ==========================================
 # 1. قراءة المتغيرات من GitHub Secrets
