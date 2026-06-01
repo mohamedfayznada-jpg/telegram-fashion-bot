@@ -3,7 +3,7 @@ import cv2
 import json
 import numpy as np
 import hashlib
-import urllib.request
+import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -14,17 +14,48 @@ if os.path.exists("skip_flag.txt"):
 folder_selected = "selected_images"
 folder_all = "downloads"
 
-# 1. تحميل خط عربي آمن للكتابة على الفيديوهات
+if not os.path.exists(folder_selected) or not os.path.exists(folder_all):
+    print("⚠️ مجلدات الصور غير موجودة.")
+    exit(0)
+
+# ==========================================
+# 1. تحميل خط عربي آمن (مع خطة طوارئ مضادة للأعطال)
+# ==========================================
 font_path = "Cairo-Bold.ttf"
-if not os.path.exists(font_path):
+font_ready = os.path.exists(font_path)
+
+if not font_ready:
     print("⏳ جاري تحميل الخط العربي للريلز...")
-    urllib.request.urlretrieve("https://github.com/google/fonts/raw/main/ofl/cairo/Cairo-Bold.ttf", font_path)
+    # 3 روابط بديلة عشان لو جوجل غيرت مساراتها الكود ميقفش
+    font_urls = [
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/cairo/static/Cairo-Bold.ttf",
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/tajawal/Tajawal-Bold.ttf",
+        "https://raw.githubusercontent.com/Gue22/Cairo-Font/master/Cairo-Bold.ttf"
+    ]
+    
+    for url in font_urls:
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                with open(font_path, 'wb') as f:
+                    f.write(response.content)
+                font_ready = True
+                print("✅ تم تحميل الخط العربي بنجاح.")
+                break
+        except Exception:
+            continue
+            
+    if not font_ready:
+        print("⚠️ لم نتمكن من تحميل الخط الخارجي، سيتم إنشاء الريلز بدون نصوص متحركة لضمان استمرار النظام.")
 
 def get_image_hash(filepath):
     with open(filepath, "rb") as f:
         return hashlib.md5(f.read()).hexdigest()
 
+# ==========================================
 # 2. إعداد الصور والكولاچ (بدون تكرار)
+# ==========================================
+print("⏳ جاري تنقية الصور وتجهيز الكولاچ...")
 unique_images = []
 seen = set()
 for file in sorted(os.listdir(folder_selected)):
@@ -78,13 +109,17 @@ if os.path.exists(logo_path):
 
 canvas.convert("RGB").save("marketing_collage.jpg", quality=95)
 
+# ==========================================
 # 3. إعداد صورة الستوري المخصصة
+# ==========================================
 story_canvas = canvas.resize((1080, 1080))
 story_bg = story_canvas.resize((1080, 1920)).filter(ImageFilter.GaussianBlur(30))
 story_bg.paste(story_canvas, (0, (1920 - 1080) // 2))
 story_bg.convert("RGB").save("story_ready.jpg", quality=95)
 
+# ==========================================
 # 4. إعداد فيديو الريلز الديناميكي
+# ==========================================
 try:
     with open("ai_result.json", "r", encoding="utf-8") as f:
         ai_data = json.load(f)
@@ -95,21 +130,28 @@ reel_text_1 = ai_data.get("reel_text_1", "شياكة لا تقاوم!")
 reel_text_2 = ai_data.get("reel_text_2", "اطلبيها دلوقتي")
 
 def draw_arabic_text(img_pil, text, y_pos, font_size=70):
-    reshaped = arabic_reshaper.reshape(text)
-    bidi_text = get_display(reshaped)
-    font = ImageFont.truetype(font_path, font_size)
-    draw = ImageDraw.Draw(img_pil, "RGBA")
-    
-    try:
-        w = font.getlength(bidi_text)
-    except AttributeError:
-        w = 400
+    if not font_ready:
+        return img_pil # تخطي الكتابة إذا لم يتوفر الخط
         
-    x_pos = (1080 - w) / 2
-    
-    # رسم ظل أسود للنص عشان يكون واضح
-    draw.text((x_pos + 4, y_pos + 4), bidi_text, font=font, fill=(0, 0, 0, 255))
-    draw.text((x_pos, y_pos), bidi_text, font=font, fill=(255, 215, 0, 255)) # لون ذهبي
+    try:
+        reshaped = arabic_reshaper.reshape(text)
+        bidi_text = get_display(reshaped)
+        font = ImageFont.truetype(font_path, font_size)
+        draw = ImageDraw.Draw(img_pil, "RGBA")
+        
+        try:
+            w = font.getlength(bidi_text)
+        except AttributeError:
+            w = 400
+            
+        x_pos = (1080 - w) / 2
+        
+        # رسم ظل أسود للنص عشان يكون واضح
+        draw.text((x_pos + 4, y_pos + 4), bidi_text, font=font, fill=(0, 0, 0, 255))
+        draw.text((x_pos, y_pos), bidi_text, font=font, fill=(255, 215, 0, 255)) # لون ذهبي
+    except Exception as e:
+        print(f"⚠️ خطأ غير متوقع أثناء الكتابة: {e}")
+        
     return img_pil
 
 print("🎥 جاري إنشاء فيديو الريلز...")
@@ -150,7 +192,7 @@ for idx, img_path in enumerate(v_unique):
             logo_y_pos_video = 1750 + ((170 - logo_target_height) // 2)
             bg.paste(logo, (30, logo_y_pos_video), mask=logo)
 
-        # إضافة النصوص المتحركة
+        # إضافة النصوص المتحركة (إذا تم تحميل الخط بنجاح)
         if idx == 0:
             bg = draw_arabic_text(bg, reel_text_1, 250, 85)
         elif idx == len(v_unique) - 1:
