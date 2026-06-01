@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install telethon pillow requests opencv-python numpy
+          pip install telethon pillow requests google-generativeai opencv-python numpy
       - name: 1. Scrape Telegram
         env:
           API_ID: ${{ secrets.API_ID }}
