@@ -20,37 +20,38 @@ client = TelegramClient(
 
 IGNORE_WORDS = [
     "السلام عليكم", "العمولات", "اوردر", "يمنشن", "قاهره", 
-    "جيزه", "عيد", "اجازة", "استئناف العمل"
+    "جيزه", "عيد", "اجازة", "استئناف العمل", "كل سنة"
 ]
 
 def extract_price(text):
-    # تحويل الأرقام العربية إلى إنجليزية لتسهيل البحث
     arabic_to_english = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
     text = text.translate(arabic_to_english)
     
+    # 1. البحث بالطريقة التقليدية
     patterns = [
         r"السعر\s*[:\-]?\s*(\d+)", 
         r"سعر\s*القطعه\s*(\d+)", 
         r"(\d+)\s*ج\.?م", 
-        r"(\d+)\s*ج", 
+        r"(\d+)\s*ج\b", 
         r"(\d+)\s*جنيه"
     ]
-    
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1)
+        if match: return match.group(1)
+        
+    # 2. الخطة البديلة: صيد آخر رقم مكون من 3 أو 4 خانات (طريقة التجار)
+    numbers = re.findall(r'\b\d{3,4}\b', text)
+    if numbers:
+        return numbers[-1] # دائماً السعر يكون في النهاية
+        
     return "غير محدد"
 
 def extract_product_code(text):
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
     lines = text.splitlines()
-    
     for line in reversed(lines):
         match = re.search(r"(\d{3,})", line.strip())
-        if match:
-            return f"FS{match.group(1)}"
-            
+        if match: return f"FS{match.group(1)}"
     return f"FS{random.randint(100, 999)}"
 
 async def main():
@@ -58,7 +59,6 @@ async def main():
     channel = await client.get_entity("yasminstoriii")
     messages = await client.get_messages(channel, limit=100)
 
-    # محاولة قراءة المنتجات المنشورة مسبقاً
     try:
         with open("posted_ids.json", "r") as f:
             posted_ids = json.load(f)
@@ -69,25 +69,31 @@ async def main():
     
     # البحث من الأقدم للأحدث لنشر المنتجات بالترتيب
     for msg in reversed(messages):
+        if msg.id in posted_ids:
+            continue
+            
         text = (msg.message or "").strip()
         
-        # تجاهل رسائل الإدمن والإعلانات
-        if not text:
-            continue
-            
+        # === حل مشكلة الطابور ===
+        # لو الرسالة للإدمن أو مفيهاش صور، لازم نحفظها في الذاكرة عشان البوت ميعلقش عليها
         is_ignored = False
-        for word in IGNORE_WORDS:
-            if word.lower() in text.lower():
-                is_ignored = True
-                break
-                
+        if not text or not msg.media:
+            is_ignored = True
+        else:
+            for word in IGNORE_WORDS:
+                if word.lower() in text.lower():
+                    is_ignored = True
+                    break
+                    
         if is_ignored:
+            posted_ids.append(msg.id)
+            with open("posted_ids.json", "w") as f:
+                json.dump(posted_ids[-1000:], f)
             continue
             
-        # التحقق إذا كان المنتج لم يُنشر من قبل
-        if msg.id not in posted_ids:
-            product_msg = msg
-            break
+        # لو وصلنا هنا، يبقى لقينا منتج حقيقي جديد!
+        product_msg = msg
+        break
 
     if not product_msg:
         print("✅ لا يوجد منتجات جديدة لنشرها حالياً.")
@@ -95,7 +101,7 @@ async def main():
             f.write("skip")
         return
 
-    print(f"🎯 تم صيد منتج جديد! جاري تجميع الصور الخاصة به...")
+    print("🎯 تم صيد منتج جديد! جاري التجهيز...")
     
     image_messages = []
     found_start = False
@@ -104,9 +110,7 @@ async def main():
         if msg.id == product_msg.id:
             found_start = True
             continue
-            
         if found_start:
-            # التوقف عند ظهور رسالة نصية جديدة (منتج جديد)
             if msg.message and msg.message.strip():
                 break
             if msg.media:
@@ -122,8 +126,6 @@ async def main():
 
     price = extract_price(product_msg.message)
     product_code = extract_product_code(product_msg.message)
-    
-    # تنظيف الوصف من السعر لعدم تشويش الذكاء الاصطناعي
     description = re.sub(r"السعر.*", "", product_msg.message, flags=re.IGNORECASE).strip()
 
     product_data = {
