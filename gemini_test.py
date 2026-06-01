@@ -76,8 +76,9 @@ headers = {
     "Content-Type": "application/json"
 }
 
+# 🚀 الموديل السحري الجديد (يدعم الصور، سريع جداً، ومجاني)
 data = {
-    "model": "google/gemini-1.5-flash", # تم تعديل الاسم ليتوافق مع سيرفرات OpenRouter
+    "model": "google/gemini-2.0-flash-exp:free", 
     "messages": [{"role": "user", "content": content_array}]
 }
 
