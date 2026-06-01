@@ -2,17 +2,15 @@ import os
 import re
 import json
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 
-from telethon.sessions import StringSession
-
 # قراءة الرمز وتنظيفه من أي مسافات
 SESSION_STRING = os.environ.get("TELEGRAM_SESSION", "").strip()
 
-# الدخول بالجلسة
-# لازم نبعت نفس بيانات الجهاز الوهمية هنا عشان الجلسة ماتتقفلش
+# الدخول بالجلسة ببيانات وهمية لعدم غلق الحساب
 client = TelegramClient(
     StringSession(SESSION_STRING), 
     API_ID, 
@@ -35,44 +33,66 @@ def is_admin_message(text):
             return True
     return False
 
+# ==========================================
+# فلاتر الاستخراج الذكية
+# ==========================================
 def extract_fabric(text):
     match = re.search(r"الخامه\s*👈\s*(.+)", text)
-    if match:
-        return match.group(1).strip()
-    return ""
+    return match.group(1).strip() if match else ""
 
 def extract_size(text):
     match = re.search(r"المقاس\s*👈\s*(.+)", text)
-    if match:
-        return match.group(1).strip()
-    return ""
+    return match.group(1).strip() if match else ""
 
 def extract_product_type(text):
     match = re.search(r"الموديل\s*👈\s*(.+)", text)
-    if match:
-        return match.group(1).strip()
-    return ""
+    return match.group(1).strip() if match else ""
 
 def extract_price(text):
-    patterns = [r"السعر.*?(\d+)", r"(\d+)\s*ج", r"(\d+)\s*جنيه"]
+    # تحويل الأرقام العربية (الهندية) إلى إنجليزية لسهولة البحث
+    arabic_to_english = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
+    text = text.translate(arabic_to_english)
+    
+    # فلاتر صيد السعر بكل أشكاله الممكنة
+    patterns = [
+        r"السعر\s*[:\-]?\s*(\d+)",   # السعر 350 أو السعر: 350
+        r"سعر\s*القطعه\s*(\d+)",    # سعر القطعه 350
+        r"(\d+)\s*ج\.?م",           # 350 ج.م
+        r"(\d+)\s*ج",               # 350 ج
+        r"(\d+)\s*جنيه"             # 350 جنيه
+    ]
+    
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return match.group(1)
-    return ""
+    return "غير محدد"
 
 def extract_product_code(text):
+    arabic_to_english = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
+    text = text.translate(arabic_to_english)
+    
     lines = text.splitlines()
     for line in reversed(lines):
         line = line.strip()
-        if line.isdigit():
-            return f"FS{line}"
-    return ""
+        # البحث عن أي أرقام في السطر الأخير
+        match = re.search(r"(\d{3,})", line)
+        if match:
+            return f"FS{match.group(1)}"
+            
+    # لو ملقاش كود، يحط كود افتراضي بدل ما يسيبه فاضي
+    import random
+    return f"FS{random.randint(100, 999)}"
 
 def clean_description(text):
+    # مسح السعر من الوصف عشان الذكاء الاصطناعي ما يتلخبطش
     text = re.sub(r"السعر.*", "", text, flags=re.IGNORECASE)
-    return text.strip()
+    # تنظيف المسافات الزائدة
+    return " ".join(text.split())
 
+# ==========================================
+# الوظيفة الرئيسية
+# ==========================================
 async def main():
     await client.start()
     channel = await client.get_entity("yasminstoriii")
@@ -117,7 +137,6 @@ async def main():
     downloaded = []
     ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"]
 
-    # بداية التعديل: تظبيط المسافات (Indentation) هنا
     for msg in image_messages:
         filename = await client.download_media(
             msg,
@@ -142,7 +161,6 @@ async def main():
     price = extract_price(product_msg.message)
     product_code = extract_product_code(product_msg.message)
     description = clean_description(product_msg.message)
-    # نهاية التعديل
 
     product_data = {
         "product_id": product_msg.id,
@@ -169,18 +187,12 @@ async def main():
     with open("price_db.json", "w", encoding="utf-8") as f:
         json.dump({product_code: price}, f, ensure_ascii=False, indent=2)
        
-    prompt = f"""الكود: {product_code}\nالوصف:\n{description}\n\nاكتب:\n1- Facebook Post\n2- Hashtags\n3- Story Post\n4- Reel Idea\n5- Best Images"""
-
-    with open("post_prompt.txt", "w", encoding="utf-8") as f:
-        f.write(prompt)
-
     print("\n========================")
     print("PRODUCT_ID:", product_msg.id)
-    print("\nPRODUCT_CODE:", product_code)
-    print("\nPRICE:", price)
-    print("\nIMAGES_COUNT:", len(downloaded))
-    print("\nFILES_CREATED:\nproduct.json\nprice_db.json\npost_prompt.txt")
-    print("\n========================")
+    print("PRODUCT_CODE:", product_code)
+    print("PRICE:", price)
+    print("IMAGES_COUNT:", len(downloaded))
+    print("========================\n")
 
 with client:
     client.loop.run_until_complete(main())
