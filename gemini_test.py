@@ -3,27 +3,35 @@ import json
 import shutil
 import time
 import random
-from PIL import Image
-from google import genai
-from google.genai import types
+import base64
+import requests
 
 # 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
-# 2. تجهيز الصور للذكاء الاصطناعي
-images = []
+# 2. تجهيز الصور وإرسالها لجوجل كبيانات خام (Base64)
+image_parts = []
 for file in product.get("images", []):
     if os.path.exists(file):
         try:
-            images.append(Image.open(file))
+            with open(file, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                ext = os.path.splitext(file)[1].lower().replace('.', '')
+                mime_type = f"image/{ext}" if ext in ['jpg', 'jpeg', 'png', 'webp'] else "image/jpeg"
+                image_parts.append({
+                    "inline_data": {
+                        "mime_type": mime_type,
+                        "data": encoded_string
+                    }
+                })
         except Exception as e:
-            print(f"⚠️ تعذر فتح الصورة {file}: {e}")
+            print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
 
 available_images = "\n".join(product.get("images", []))
 
 # 3. إعداد الـ Prompt
-prompt = f"""
+prompt_text = f"""
 أنت خبير تسويق أزياء مصري محترف.
 مهمتك كتابة محتوى لبراند ملابس مصري راقي اسمه "Fastyle".
 
@@ -51,48 +59,62 @@ Return ONLY valid JSON with this exact structure:
 }}
 """
 
-contents = images + [prompt]
-
-# 💡 الخدعة الثانية: التمويه لتفادي بلوك الـ IP من جوجل
+# 💡 الخدعة للهروب من زحام جيتهاب
 sleep_time = random.randint(15, 45)
-print(f"⏳ انتظار {sleep_time} ثانية للهروب من زحام سيرفرات GitHub...")
+print(f"⏳ انتظار {sleep_time} ثانية للهروب من زحام السيرفرات...")
 time.sleep(sleep_time)
 
-# 4. الاتصال بجوجل بأمان
+# 4. الاتصال المباشر بجوجل بدون أي مكتبات (REST API)
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     print("❌ مفتاح GEMINI_API_KEY غير موجود!")
     exit(1)
 
-client = genai.Client(api_key=api_key)
-result = None
+# رابط الاتصال المباشر الثابت (عمره ما يتغير ولا يضرب 404)
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
+headers = {"Content-Type": "application/json"}
+
+# تركيب الطلب
+parts = [{"text": prompt_text}] + image_parts
+payload = {
+    "contents": [{"parts": parts}],
+    "generationConfig": {"response_mime_type": "application/json"}
+}
+
+result = None
 for attempt in range(4):
     try:
-        print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/4)...")
-        response = client.models.generate_content(
-            model="gemini-1.5-flash", # أسرع وأكثر موديل مستقر ومجاني
-            contents=contents,
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        result = response.text
-        break 
-    except Exception as e:
-        error_msg = str(e).lower()
-        if "429" in error_msg or "503" in error_msg or "quota" in error_msg:
+        print(f"⏳ جاري الاتصال المباشر بـ Gemini (محاولة {attempt + 1}/4)...")
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            result = response.json()
+            try:
+                result = result['candidates'][0]['content']['parts'][0]['text']
+                break
+            except KeyError:
+                print(f"⚠️ رد غير متوقع من السيرفر: {response.text}")
+                time.sleep(10)
+        elif response.status_code == 429 or response.status_code >= 500:
             wait_t = 30 * (attempt + 1)
-            print(f"⚠️ زحام على السيرفر. سننتظر {wait_t} ثانية...")
+            print(f"⚠️ زحام على السيرفر (الخطأ {response.status_code}). سننتظر {wait_t} ثانية...")
             time.sleep(wait_t)
         else:
-            print(f"⚠️ خطأ غير متوقع: {e}")
+            print(f"⚠️ خطأ {response.status_code}: {response.text}")
             break
+    except Exception as e:
+        print(f"⚠️ خطأ في الاتصال: {e}")
+        time.sleep(10)
 
 if not result:
     print("❌ فشل الاتصال بجوجل تماماً.")
     exit(1)
 
 # 5. معالجة وتصدير الملفات
-print("\n✅ تم الاتصال بنجاح!")
+print("\n✅ تم الاتصال بنجاح واستلام المحتوى!")
+
+# تنظيف الـ JSON
 if result.startswith("```json"):
     result = result.split("```json")[1].split("```")[0].strip()
 elif result.startswith("```"):
