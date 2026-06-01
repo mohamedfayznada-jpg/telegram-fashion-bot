@@ -76,9 +76,9 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# 🚀 الموديل السحري الجديد (يدعم الصور، سريع جداً، ومجاني)
+# 🚀 تم تحديث الموديل لأحدث نسخة مستقرة ومدعومة بالكامل 
 data = {
-    "model": "google/gemini-2.0-flash-exp:free", 
+    "model": "google/gemini-3.5-flash", 
     "messages": [{"role": "user", "content": content_array}]
 }
 
@@ -105,13 +105,13 @@ else:
 print("\nRAW_RESPONSE:\n", result)
 
 # استخراج الـ JSON لو الموديل رجعه جوه علامات ```json
-if "```json" in result:
+if result and "```json" in result:
     result = result.split("```json")[1].split("```")[0].strip()
-elif "```" in result:
+elif result and "```" in result:
     result = result.split("```")[1].split("```")[0].strip()
 
 with open("ai_result.json", "w", encoding="utf-8") as f:
-    f.write(result)
+    f.write(result if result else "{}")
 
 try:
     data_json = json.loads(result)
