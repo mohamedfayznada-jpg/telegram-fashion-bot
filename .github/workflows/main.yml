@@ -2,8 +2,8 @@ name: Fastyle AI Marketing Pipeline
 
 on:
   schedule:
-    - cron: '0 * * * *' # يعمل كل ساعة
-  workflow_dispatch: # زرار التشغيل اليدوي
+    - cron: '14 * * * *' # 💡 الخدعة الأولى: هيشتغل الدقيقة 14 كل ساعة بعيداً عن زحمة السيرفرات
+  workflow_dispatch:
 
 jobs:
   run-pipeline:
@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install telethon pillow requests opencv-python numpy
+          pip install telethon pillow requests google-genai opencv-python numpy
 
       - name: 1. Scrape Telegram
         env:
@@ -28,9 +28,9 @@ jobs:
           TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
         run: python read_channel.py
 
-      - name: 2. Generate AI Content (OpenRouter)
+      - name: 2. Generate AI Content (Gemini Official)
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python gemini_test.py
 
       - name: 3. Create Studio Collage & Reel Video
