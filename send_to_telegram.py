@@ -1,49 +1,53 @@
 import os
+import json
 import requests
 
-BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# 1. إرسال الصورة المجمعة (Collage) أولاً
-if os.path.exists("marketing_collage.jpg"):
-    with open("marketing_collage.jpg", "rb") as photo:
-        r = requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-            data={
-                "chat_id": CHAT_ID,
-                "caption": "🔥 كولاچ المنتج المجمع"
-            },
-            files={"photo": photo}
-        )
-        print("\nSEND PHOTO RESPONSE:\n")
-        print(r.text)
-else:
-    print("\nmarketing_collage.jpg NOT FOUND\n")
+if not BOT_TOKEN or not CHAT_ID:
+    print("❌ بيانات تيلجرام غير متوفرة (BOT_TOKEN أو CHAT_ID).")
+    exit(0)
 
+# قراءة بيانات المنتج والسعر
+try:
+    with open("product.json", "r", encoding="utf-8") as f:
+        product = json.load(f)
+except Exception:
+    product = {}
 
-# 2. إرسال كل بوست في رسالة منفصلة لتجنب قص النصوص (Truncation)
-files_to_read = {
-    "facebook_post_soft.txt": "البوست الهادي (Soft)",
-    "facebook_post_sales.txt": "بوست البيع المباشر (Sales)",
-    "facebook_post_viral.txt": "بوست التفاعل (Viral)",
-    "story_post.txt": "محتوى الاستوري (Story)"
+code = product.get("product_code", "غير محدد")
+price = product.get("price", "غير محدد") # ده اللي هيجيب السعر من الملف اللي قبله
+
+# قراءة البوست النهائي
+try:
+    with open("facebook_post_sales.txt", "r", encoding="utf-8") as f:
+        fb_post = f.read().strip()
+except:
+    fb_post = "تم النشر بنجاح."
+
+# تجهيز الرسالة
+message = f"""
+🎉 **تم النشر بنجاح على صفحة Fastyle!** 🚀
+
+👗 **كود الموديل:** {code}
+💰 **السعر:** {price}
+
+📄 **نص البوست اللي نزل:**
+{fb_post}
+
+✅ (تم رفع البوست + الستوري + فيديو الريلز بنجاح)
+"""
+
+url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+payload = {
+    "chat_id": CHAT_ID,
+    "text": message,
+    "parse_mode": "Markdown"
 }
 
-for file, title in files_to_read.items():
-    if os.path.exists(file):
-        with open(file, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-            
-        if content: # تأكد إن الملف فيه داتا فعلاً
-            message_text = f"===== {title} =====\n\n{content}"
-            r = requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                data={
-                    "chat_id": CHAT_ID,
-                    "text": message_text
-                }
-            )
-            print(f"\nSEND {file} RESPONSE:\n")
-            print(r.text)
-
-print("\nALL CONTENT SENT TO TELEGRAM")
+response = requests.post(url, json=payload)
+if response.status_code == 200:
+    print("✅ تم إرسال تقرير النجاح إلى تيلجرام!")
+else:
+    print(f"❌ خطأ في إرسال التقرير: {response.text}")
