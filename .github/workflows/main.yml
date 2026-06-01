@@ -2,12 +2,15 @@ name: Fastyle AI Marketing Pipeline
 
 on:
   schedule:
-    - cron: '17 * * * *' # توقيت عشوائي بعيد عن رأس الساعة
+    - cron: '*/15 * * * *' # يشتغل كل 15 دقيقة
   workflow_dispatch:
+
+permissions:
+  contents: write # السماح للبوت بحفظ ذاكرة المنتجات المنشورة في جيتهاب
 
 jobs:
   run-pipeline:
-    runs-on: macos-latest # 💡 الحل السحري الأول: استخدام سيرفرات أبل للهروب من حظر الـ IP
+    runs-on: macos-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -19,21 +22,21 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install telethon pillow requests opencv-python-headless numpy
+          pip install telethon pillow requests opencv-python-headless numpy arabic-reshaper python-bidi
 
-      - name: 1. Scrape Telegram
+      - name: 1. Scrape Telegram (Queue System)
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
           TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
         run: python read_channel.py
 
-      - name: 2. Generate AI Content (Optimized Payload)
+      - name: 2. Generate AI Content (Marketing Psychology)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python gemini_test.py
 
-      - name: 3. Create Studio Collage & Reel Video
+      - name: 3. Create Studio Collage & Dynamic Reel
         run: python image_processor.py
 
       - name: 4. Publish to Facebook (Post, Story, Reels)
@@ -47,3 +50,11 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python send_to_telegram.py
+
+      - name: 6. Commit Database (Save Memory)
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add posted_ids.json
+          git commit -m "Auto-update posted products DB" || echo "No new products to save"
+          git push
