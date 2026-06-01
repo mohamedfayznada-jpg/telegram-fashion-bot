@@ -4,7 +4,9 @@ import shutil
 import random
 import requests
 
-# 1. قراءة بيانات المنتج
+# ==========================================
+# 1. قراءة بيانات المنتج والصور
+# ==========================================
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
@@ -26,7 +28,8 @@ def generate_fallback_content():
         "✨ الجمال في التفاصيل.. تألقي مع أحدث موديلات Fastyle! 🌸"
     ]
     
-    facebook_post = f"{random.choice(hooks)}\n\nوفرنالك الموديل ده عشان يكمل شياكتك، خامة ممتازة وتقفيل بريميوم 💯\n\n📌 التفاصيل:\n{desc}\n\nاطلبيها دلوقتي قبل نفاذ الكمية 💌\n\nكود الموديل: {code}"
+    # بوست قصير ومباشر جداً
+    facebook_post = f"{random.choice(hooks)}\n\n📌 التفاصيل: {desc[:150]}...\n\nلطلب الأوردر ابعتيلنا رسالة، كود الموديل: {code}"
     
     return {
         "facebook_post_sales": facebook_post,
@@ -37,18 +40,30 @@ def generate_fallback_content():
     }
 
 # ==========================================
-# 3. محاولة الاتصال بالذكاء الاصطناعي
+# 3. محاولة الاتصال بالذكاء الاصطناعي (Prompt صارم جداً)
 # ==========================================
 api_key = os.environ.get("GEMINI_API_KEY")
 result_json = None
 
 if api_key:
-    print("🚀 جاري محاولة الاتصال بـ Gemini...")
-    prompt_text = f"""أنت خبير تسويق أزياء مصري. اكتب محتوى لبراند "Fastyle".
+    print("🚀 جاري محاولة الاتصال بـ Gemini للحصول على محتوى قصير وجذاب...")
+    prompt_text = f"""أنت خبير تسويق أزياء مصري. مهمتك كتابة محتوى لبراند "Fastyle".
 بيانات المنتج:
 - كود: {product.get("product_code", "")}
 - الوصف: {product.get("description", "")}
-الرد يجب أن يكون JSON فقط يحتوي على: facebook_post_sales, story_post, reel_idea."""
+
+القواعد الصارمة:
+1. البوست يجب أن يكون قصير جداً (3 أسطر كحد أقصى).
+2. لا تستخدم مقدمات طويلة، ادخل في تفاصيل الموديل فوراً.
+3. اذكر السعر إذا كان موجوداً في الوصف بوضوح.
+4. السطر الأخير يجب أن يكون: "لطلب الأوردر ابعتيلنا رسالة، كود الموديل: [الكود]"
+
+الرد يجب أن يكون JSON فقط يحتوي على:
+{{
+  "facebook_post_sales": "بوست قصير وجذاب جدا",
+  "story_post": "جملة واحدة للستوري",
+  "reel_idea": "وصف قصير للريلز"
+}}"""
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     payload = {
@@ -62,7 +77,7 @@ if api_key:
             result_text = response.json()['candidates'][0]['content']['parts'][0]['text']
             result_text = result_text.strip()
             
-            # تنظيف الـ JSON بشكل آمن ومفرود
+            # تنظيف الـ JSON
             if result_text.startswith("```json"):
                 result_text = result_text.split("```json")[1].split("```")[0].strip()
             elif result_text.startswith("```"):
@@ -72,7 +87,7 @@ if api_key:
                 result_json = json.loads(result_text)
                 result_json["best_images"] = best_images
                 result_json["cover_image"] = cover_image
-                print("✅ نجح Gemini في كتابة المحتوى التسويقي!")
+                print("✅ نجح Gemini في كتابة المحتوى التسويقي المختصر!")
             except json.JSONDecodeError:
                 print("⚠️ جوجل أرسل نص غير صالح. سيتم التحويل للمحرك البديل.")
                 result_json = None
@@ -82,14 +97,14 @@ if api_key:
         print(f"⚠️ فشل الاتصال بالسيرفر: {e}. سيتم التحويل للمحرك البديل.")
 
 # ==========================================
-# 4. تفعيل الخطة البديلة فوراً في حالة فشل جوجل
+# 4. تفعيل الخطة البديلة في حالة الفشل
 # ==========================================
 if not result_json:
     print("💡 تفعيل (المحرك البديل المحلي) لضمان استمرار النشر بدون أي توقف...")
     result_json = generate_fallback_content()
 
 # ==========================================
-# 5. تصدير الملفات وبدء النشر
+# 5. تصدير الملفات النهائية
 # ==========================================
 print("\n✅ جاري تجهيز الملفات النهائية...")
 files_to_write = {
