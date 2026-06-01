@@ -1,14 +1,12 @@
 import os
-from PIL import Image, ImageDraw, ImageFont
-import arabic_reshaper
-from bidi.algorithm import get_display
+from PIL import Image, ImageDraw
 
 folder = "selected_images"
 if not os.path.exists(folder):
     raise Exception("selected_images folder not found")
 
 images = []
-print("⏳ جاري تجميع الصور الأصلية وإنشاء تصميم المجلة...")
+print("⏳ جاري تجميع الصور وتجهيز الكولاچ...")
 
 for file in sorted(os.listdir(folder)):
     path = os.path.join(folder, file)
@@ -21,7 +19,6 @@ if len(images) == 0:
     print("No images found")
     exit(0)
 
-# تجميع أفضل 4 صور
 images = images[:4]
 canvas = Image.new("RGB", (1200, 1200), "white")
 
@@ -40,40 +37,35 @@ elif len(images) == 4:
         canvas.paste(img.resize((600, 600)), pos)
 
 # ==========================================
-# اللمسة الاحترافية: شريط سفلي (Footer) لإخفاء العيوب وإضافة التوقيع
+# الشريط السفلي (Footer) + اللوجو
 # ==========================================
 draw = ImageDraw.Draw(canvas, "RGBA")
-footer_height = 90
+footer_height = 100
 
-# رسم شريط داكن بعرض الصورة من الأسفل (يغطي أي نصوص قديمة)
+# رسم شريط داكن بعرض الصورة من الأسفل
 draw.rectangle(
     [0, 1200 - footer_height, 1200, 1200],
-    fill=(15, 23, 42, 240) # لون كحلي/أسود أنيق جداً
+    fill=(15, 23, 42, 240) # لون داكن أنيق
 )
 
-# النص اللي هيتكتب جوه الشريط
-text = "مُحَمَّد فَايِز   |   F A S T Y L E"
-reshaped = arabic_reshaper.reshape(text)
-bidi_text = get_display(reshaped)
-
-# إعداد الخط الذهبي
-font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-try:
-    font = ImageFont.truetype(font_path, 34)
-except:
-    font = ImageFont.load_default()
-
-# حساب مكان النص ليكون في المنتصف
-try:
-    text_width = font.getlength(bidi_text)
-except:
-    text_width = 400
-
-x_pos = (1200 - text_width) / 2
-y_pos = 1200 - footer_height + 25
-
-# طباعة النص
-draw.text((x_pos, y_pos), bidi_text, fill=(218, 165, 32, 255), font=font)
+# دمج اللوجو داخل الشريط (بدل النص العربي اللي بيبوظ)
+logo_path = "logo.png"
+if os.path.exists(logo_path):
+    logo = Image.open(logo_path).convert("RGBA")
+    
+    # تصغير اللوجو ليكون مناسب لارتفاع الشريط
+    logo_target_height = 70
+    w_percent = (logo_target_height / float(logo.height))
+    logo_target_width = int((float(logo.width) * float(w_percent)))
+    logo = logo.resize((logo_target_width, logo_target_height), Image.Resampling.LANCZOS)
+    
+    # وضع اللوجو في الجانب الأيسر داخل الشريط
+    x_pos = 40
+    y_pos = 1200 - footer_height + 15
+    
+    transparent = Image.new('RGBA', canvas.size, (0,0,0,0))
+    transparent.paste(logo, (x_pos, y_pos), mask=logo)
+    canvas = Image.alpha_composite(canvas.convert("RGBA"), transparent)
 
 canvas.convert("RGB").save("marketing_collage.jpg", quality=95)
-print("🎉 تم إنشاء الكولاچ بتصميم المجلات الاحترافي!")
+print("🎉 تم إنشاء الكولاچ ووضع اللوجو بنجاح!")
