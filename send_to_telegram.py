@@ -2,6 +2,7 @@ import os
 import json
 import requests
 
+# التأكد من عدم وجود علم التخطي
 if os.path.exists("skip_flag.txt"):
     exit(0)
 
@@ -12,6 +13,7 @@ if not BOT_TOKEN or not CHAT_ID:
     print("❌ بيانات بوت تيلجرام غير متوفرة.")
     exit(0)
 
+# محاولة قراءة بيانات المنتج
 try:
     with open("product.json", "r", encoding="utf-8") as f:
         product = json.load(f)
@@ -21,22 +23,38 @@ except Exception:
 code = product.get("product_code", "غير محدد")
 price = product.get("price", "غير محدد")
 
+# قراءة الذاكرة (posted_ids.json) لمعرفة عدد المنتجات التي تم نشرها
+try:
+    if os.path.exists("posted_ids.json"):
+        with open("posted_ids.json", "r") as f:
+            posted_ids = json.load(f)
+        processed_count = len(posted_ids)
+    else:
+        processed_count = 0
+except Exception:
+    processed_count = 0
+
+# قراءة نص البوست الذي تم نشره
 try:
     with open("facebook_post_sales.txt", "r", encoding="utf-8") as f:
         fb_post = f.read().strip()
 except Exception:
-    fb_post = "تم النشر."
+    fb_post = "تم النشر بنجاح."
 
+# تجهيز الرسالة الشاملة التي ستصلك في البوت
 message = f"""
 🎉 **تم النشر التلقائي بنجاح!** 🚀
 
 👗 **كود الموديل:** {code}
 💰 **السعر:** {price}
 
+📊 **حالة الطابور:**
+تم معالجة {processed_count} منتج حتى الآن.
+
 📄 **نص البوست:**
 {fb_post}
 
-✅ تمت العملية بالكامل (بوست + ستوري + ريلز)
+✅ (تم رفع البوست + الستوري + فيديو الريلز بنجاح)
 """
 
 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
