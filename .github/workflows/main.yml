@@ -16,11 +16,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
-      - name: Install Dependencies
-        run: |
-          pip install telethon pillow requests google-genai opencv-python numpy
-          
+         
       - name: 1. Scrape Telegram
         env:
           API_ID: ${{ secrets.API_ID }}
@@ -28,11 +24,14 @@ jobs:
           TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
         run: python read_channel.py
 
-      - name: 2. Generate AI Content (Gemini)
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python gemini_test.py
+      - name: Install Dependencies
+        run: |
+          pip install telethon pillow requests opencv-python numpy
 
+      - name: 2. Generate AI Content (OpenRouter)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python gemini_test.py
       - name: 3. Create Studio Collage (AI Background Removal)
         run: python image_processor.py
 
