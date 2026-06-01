@@ -10,7 +10,7 @@ import requests
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
-# 2. تحويل الصور لبيانات خام (Base64) عشان تتبعت مباشرة للسيرفر
+# 2. تحويل الصور لبيانات خام (Base64)
 image_parts = []
 for file in product.get("images", []):
     if os.path.exists(file):
@@ -26,7 +26,7 @@ for file in product.get("images", []):
                     }
                 })
         except Exception as e:
-            print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
+            pass
 
 available_images = "\n".join(product.get("images", []))
 
@@ -64,15 +64,8 @@ if not api_key:
     print("❌ مفتاح GEMINI_API_KEY غير موجود!")
     exit(1)
 
-# 💡 قائمة بكل موديلات Gemini الرسمية (الكود هيجربهم واحد ورا التاني)
-models_to_try = [
-    "gemini-2.0-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-002",
-    "gemini-1.5-flash-8b",
-    "gemini-1.5-pro"
-]
+# التركيز على الموديل الوحيد اللي شغال
+url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
 
 headers = {"Content-Type": "application/json"}
 parts = [{"text": prompt_text}] + image_parts
@@ -83,50 +76,42 @@ payload = {
 
 result = None
 
-# انتظار عشوائي بسيط لتفادي بلوك الـ IP من جيتهاب
-sleep_time = random.randint(5, 15)
-print(f"⏳ انتظار {sleep_time} ثانية لتفادي زحام السيرفرات...")
+# انتظار مبدئي لتجنب زحمة الدقيقة الأولى
+sleep_time = random.randint(20, 45)
+print(f"⏳ انتظار {sleep_time} ثانية قبل بدء الاتصال...")
 time.sleep(sleep_time)
 
-# 4. ماكينة صيد الموديلات والاتصال المباشر
-for model_name in models_to_try:
-    if result:
-        break # لو نجحنا، نخرج بره اللوب
+# 4. الاتصال مع الصبر الاستراتيجي
+for attempt in range(5):
+    print(f"\n🔄 جاري الاتصال بموديل gemini-2.0-flash (محاولة {attempt + 1}/5)...")
+    try:
+        response = requests.post(url, headers=headers, json=payload)
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-    print(f"\\n🔄 جاري تجربة موديل: {model_name}")
-    
-    for attempt in range(2): # هيجرب كل موديل مرتين
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            
-            if response.status_code == 200:
-                try:
-                    result = response.json()['candidates'][0]['content']['parts'][0]['text']
-                    print(f"✅ نجح الاتصال بموديل {model_name} بامتياز!")
-                    break
-                except KeyError:
-                    print("⚠️ صيغة الرد غير صحيحة، إعادة المحاولة...")
-                    time.sleep(5)
-            elif response.status_code == 404:
-                print(f"⚠️ الموديل غير متاح في حسابك (404). جاري الانتقال للموديل التالي...")
-                break # الـ 404 معناه الموديل مش موجود، فهينقل عالبعده فوراً
-            elif response.status_code == 429 or response.status_code >= 500:
-                print(f"⚠️ زحام على السيرفر (الخطأ {response.status_code}). انتظار 10 ثواني...")
-                time.sleep(10)
-            else:
-                print(f"⚠️ خطأ {response.status_code}: {response.text}")
-                break
-        except Exception as e:
-            print(f"⚠️ خطأ في الاتصال: {e}")
-            time.sleep(5)
+        if response.status_code == 200:
+            result = response.json()['candidates'][0]['content']['parts'][0]['text']
+            print("✅ نجح الاتصال واستلام المحتوى بامتياز!")
+            break
+        elif response.status_code == 429:
+            # هنا السر: هنستنى 65 ثانية عشان الحصة المجانية تتجدد 100%
+            print("⚠️ زحام على السيرفر (الخطأ 429). حصة جوجل المجانية تتجدد كل دقيقة.")
+            print("⏳ جاري الانتظار 65 ثانية لتجديد الحصة...")
+            time.sleep(65)
+        elif response.status_code >= 500:
+            print(f"⚠️ خطأ داخلي من جوجل ({response.status_code}). انتظار 30 ثانية...")
+            time.sleep(30)
+        else:
+            print(f"⚠️ خطأ {response.status_code}: {response.text}")
+            break
+    except Exception as e:
+        print(f"⚠️ خطأ في الاتصال: {e}")
+        time.sleep(15)
 
 if not result:
-    print("\\n❌ فشل الاتصال بجوجل باستخدام جميع الموديلات المتاحة.")
+    print("\n❌ فشل الاتصال بجوجل تماماً.")
     exit(1)
 
 # 5. تنظيف وتصدير الملفات
-print("\\n✅ جاري تجهيز الملفات النهائية...")
+print("\n✅ جاري تجهيز الملفات النهائية...")
 if result.startswith("```json"):
     result = result.split("```json")[1].split("```")[0].strip()
 elif result.startswith("```"):
