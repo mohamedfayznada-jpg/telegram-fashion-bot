@@ -3,26 +3,35 @@ import json
 import shutil
 import time
 import random
-import google.generativeai as genai
-from PIL import Image
+import base64
+import requests
 
 # 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
-# 2. تجهيز الصور
-images = []
+# 2. تحويل الصور لبيانات خام (Base64) عشان تتبعت مباشرة للسيرفر
+image_parts = []
 for file in product.get("images", []):
     if os.path.exists(file):
         try:
-            images.append(Image.open(file))
+            with open(file, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                ext = os.path.splitext(file)[1].lower().replace('.', '')
+                mime_type = f"image/{ext}" if ext in ['jpg', 'jpeg', 'png', 'webp'] else "image/jpeg"
+                image_parts.append({
+                    "inline_data": {
+                        "mime_type": mime_type,
+                        "data": encoded_string
+                    }
+                })
         except Exception as e:
-            print(f"⚠️ تعذر فتح الصورة {file}: {e}")
+            print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
 
 available_images = "\n".join(product.get("images", []))
 
 # 3. إعداد الـ Prompt
-prompt = f"""
+prompt_text = f"""
 أنت خبير تسويق أزياء مصري محترف.
 مهمتك كتابة محتوى لبراند ملابس مصري راقي اسمه "Fastyle".
 
@@ -50,51 +59,74 @@ Return ONLY valid JSON with this exact structure:
 }}
 """
 
-contents = images + [prompt]
-
-# 💡 انتظار بسيط لتخفيف ضغط جيتهاب
-sleep_time = random.randint(10, 20)
-print(f"⏳ انتظار {sleep_time} ثانية للهروب من زحام جيتهاب...")
-time.sleep(sleep_time)
-
-# 4. الاتصال بمكتبة جوجل الرسمية المستقرة
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     print("❌ مفتاح GEMINI_API_KEY غير موجود!")
     exit(1)
 
-genai.configure(api_key=api_key)
+# 💡 قائمة بكل موديلات Gemini الرسمية (الكود هيجربهم واحد ورا التاني)
+models_to_try = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-002",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro"
+]
 
-# ضبط الموديل عشان يرجع JSON دايماً
-generation_config = genai.types.GenerationConfig(
-    response_mime_type="application/json"
-)
-
-model = genai.GenerativeModel('gemini-1.5-flash', generation_config=generation_config)
+headers = {"Content-Type": "application/json"}
+parts = [{"text": prompt_text}] + image_parts
+payload = {
+    "contents": [{"parts": parts}],
+    "generationConfig": {"response_mime_type": "application/json"}
+}
 
 result = None
-for attempt in range(4):
-    try:
-        print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/4)...")
-        response = model.generate_content(contents)
-        result = response.text
-        break 
-    except Exception as e:
-        error_msg = str(e).lower()
-        if "429" in error_msg or "503" in error_msg or "quota" in error_msg:
-            wait_t = 20 * (attempt + 1)
-            print(f"⚠️ زحام على السيرفر. سننتظر {wait_t} ثانية...")
-            time.sleep(wait_t)
-        else:
-            print(f"⚠️ خطأ غير متوقع: {e}")
-            time.sleep(10)
+
+# انتظار عشوائي بسيط لتفادي بلوك الـ IP من جيتهاب
+sleep_time = random.randint(5, 15)
+print(f"⏳ انتظار {sleep_time} ثانية لتفادي زحام السيرفرات...")
+time.sleep(sleep_time)
+
+# 4. ماكينة صيد الموديلات والاتصال المباشر
+for model_name in models_to_try:
+    if result:
+        break # لو نجحنا، نخرج بره اللوب
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    print(f"\\n🔄 جاري تجربة موديل: {model_name}")
+    
+    for attempt in range(2): # هيجرب كل موديل مرتين
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                try:
+                    result = response.json()['candidates'][0]['content']['parts'][0]['text']
+                    print(f"✅ نجح الاتصال بموديل {model_name} بامتياز!")
+                    break
+                except KeyError:
+                    print("⚠️ صيغة الرد غير صحيحة، إعادة المحاولة...")
+                    time.sleep(5)
+            elif response.status_code == 404:
+                print(f"⚠️ الموديل غير متاح في حسابك (404). جاري الانتقال للموديل التالي...")
+                break # الـ 404 معناه الموديل مش موجود، فهينقل عالبعده فوراً
+            elif response.status_code == 429 or response.status_code >= 500:
+                print(f"⚠️ زحام على السيرفر (الخطأ {response.status_code}). انتظار 10 ثواني...")
+                time.sleep(10)
+            else:
+                print(f"⚠️ خطأ {response.status_code}: {response.text}")
+                break
+        except Exception as e:
+            print(f"⚠️ خطأ في الاتصال: {e}")
+            time.sleep(5)
 
 if not result:
-    print("❌ فشل الاتصال بجوجل تماماً.")
+    print("\\n❌ فشل الاتصال بجوجل باستخدام جميع الموديلات المتاحة.")
     exit(1)
 
-# 5. معالجة وتصدير الملفات
-print("\n✅ تم الاتصال بنجاح واستلام المحتوى!")
+# 5. تنظيف وتصدير الملفات
+print("\\n✅ جاري تجهيز الملفات النهائية...")
 if result.startswith("```json"):
     result = result.split("```json")[1].split("```")[0].strip()
 elif result.startswith("```"):
@@ -106,7 +138,7 @@ with open("ai_result.json", "w", encoding="utf-8") as f:
 try:
     data_json = json.loads(result)
 except Exception as e:
-    print("❌ خطأ في قراءة ملف JSON")
+    print("❌ خطأ في قراءة ملف JSON الناتج")
     raise e
 
 files_to_write = {
@@ -127,3 +159,5 @@ for image_path in data_json.get("best_images", [])[:4]:
 cover_image = data_json.get("cover_image", "")
 if cover_image and os.path.exists(cover_image):
     shutil.copy(cover_image, "cover_image.jpg")
+
+print("🎉 اكتمل استخراج المحتوى بنجاح!")
