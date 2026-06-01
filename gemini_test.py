@@ -65,7 +65,7 @@ for file in product.get("images", []):
         except Exception as e:
             print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
 
-# 3. الاتصال بـ OpenRouter
+# 3. الاتصال بـ OpenRouter (نظام صائد الموديلات المجانية)
 api_key = os.environ.get("OPENROUTER_API_KEY")
 if not api_key:
     print("❌ مفتاح OPENROUTER_API_KEY غير موجود في الـ Secrets!")
@@ -76,29 +76,41 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# 🚀 تم تحديث الموديل لأحدث نسخة مستقرة ومدعومة بالكامل 
-data = {
-    "model": "google/gemini-3.5-flash", 
-    "messages": [{"role": "user", "content": content_array}]
-}
+# قائمة بأقوى الموديلات المجانية اللي بتدعم قراءة الصور على المنصة
+free_models = [
+    "google/gemini-2.0-pro-exp-02-05:free",
+    "google/gemini-2.0-flash-lite-preview-02-05:free",
+    "google/gemini-exp-1206:free",
+    "qwen/qwen-vl-plus:free",
+    "meta-llama/llama-3.2-90b-vision-instruct:free"
+]
 
 result = None
-for attempt in range(3):
+
+# اللوب ده هيجرب الموديلات واحد ورا التاني لحد ما واحد فيهم ينجح
+for model_name in free_models:
+    print(f"⏳ جاري تجربة الموديل المجاني: {model_name} ...")
+    data = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": content_array}]
+    }
+    
     try:
-        print(f"⏳ جاري الاتصال بـ OpenRouter (محاولة {attempt + 1}/3)...")
         response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
         
         if response.status_code == 200:
             result = response.json()['choices'][0]['message']['content']
+            print(f"✅ نجح الاتصال والرد باستخدام الموديل: {model_name}")
             break
         else:
-            print(f"⚠️ خطأ من السيرفر: {response.text}")
-            time.sleep(5)
+            print(f"⚠️ خطأ من الموديل {model_name}: {response.text}")
+            time.sleep(2) # انتظار ثانيتين قبل تجربة الموديل اللي بعده
     except Exception as e:
-        print(f"⚠️ خطأ في الاتصال: {e}")
-        time.sleep(5)
-else:
-    print("❌ فشل الاتصال بـ OpenRouter.")
+        print(f"⚠️ خطأ في الاتصال بالموديل: {e}")
+        time.sleep(2)
+
+if not result:
+    print("❌ فشل الاتصال بجميع الموديلات المجانية المتاحة.")
     exit(1)
 
 # 4. تنظيف وحفظ المخرجات
@@ -149,4 +161,4 @@ cover_image = data_json.get("cover_image", "")
 if cover_image and os.path.exists(cover_image):
     shutil.copy(cover_image, "cover_image.jpg")
 
-print("\n✅ تم تجهيز محتوى الذكاء الاصطناعي بنجاح من OpenRouter!")
+print("\n✅ تم تجهيز محتوى الذكاء الاصطناعي بنجاح!")
