@@ -23,57 +23,36 @@ for file in product["images"]:
 
 available_images = "\n".join(product["images"])
 
-# 3. إعداد الـ Prompt
 prompt = f"""
-You are an expert Facebook fashion marketer.
+أنت خبير تسويق أزياء مصري محترف (Fashion Copywriter).
+مهمتك كتابة محتوى لبراند ملابس مصري راقي اسمه "Fastyle".
 
-Product code:
-{product["product_code"]}
+بيانات المنتج:
+- كود الموديل: {product["product_code"]}
+- الوصف الأصلي: {product["description"]}
+- مسارات الصور: {available_images}
 
-Product description:
-{product["description"]}
+شروط الكتابة (صارمة جداً):
+1. اللهجة: مصرية شبابية، راقية، وجذابة جداً (زي بلوجرز الفاشون).
+2. الـ Hook (أول سطر): لازم يكون سطر بيخطف العين ويلعب على المشاعر (مثلاً: "القطعة اللي هتحلي أي خروجة!" أو "عشان شياكتك متتقارنش بحد..").
+3. التنسيق: قسم الكلام لفقرات قصيرة جداً (سطرين بالكتير) واستخدم مسافات عشان العين ترتاح.
+4. الإيموجيز: استخدم إيموجيز راقية وهادية (✨, 🎀, 👗, 🤍) وبلاش زحمة.
+5. الكود: كود الموديل ينزل في سطر لوحده خالص في آخر البوست.
+6. المصداقية: إياك تخترع ألوان، خامات، أو مقاسات مش موجودة في الوصف الأصلي.
 
-Available image paths:
-{available_images}
-
-STRICT RULES:
-- Product description is the ONLY source of truth.
-- Images are used only for selecting the best photos.
-- NEVER invent colors, sizes, materials, discounts, offers, stock availability, or customer benefits not explicitly mentioned.
-- NEVER invent product details from image analysis.
-- customer_questions must be answerable from existing product data only.
-
-Image selection is extremely important.
-Analyze all images carefully.
-Rank images by clarity, lighting, composition, product visibility, and sales potential.
-Choose the strongest images for Facebook marketing.
-If two images are similar, keep only the better one.
-Never ask about information that does not exist in Product description.
-If information is not written in Product description, DO NOT mention it.
-
-IMPORTANT LANGUAGE RULE:
-All generated content must be written in Egyptian Arabic.
-
-VERY IMPORTANT:
-best_images must contain ONLY paths from Available image paths.
-carousel_order must contain ONLY paths from Available image paths.
-cover_image must contain ONLY one path from Available image paths.
-Do NOT create URLs, filenames, or image numbers.
-
-Return ONLY valid JSON:
+Return ONLY valid JSON with this exact structure:
 {{
-  "facebook_post_soft": "",
-  "facebook_post_sales": "",
-  "facebook_post_viral": "",
-  "facebook_post_short": "",
-  "hashtags": [],
-  "story_post": "",
-  "reel_idea": "",
+  "facebook_post_sales": "اكتب البوست الجذاب هنا",
+  "facebook_post_soft": "اكتب بوست هادي بدون بيع مباشر",
+  "facebook_post_viral": "اكتب بوست تفاعلي بيكلم البنات",
+  "facebook_post_short": "بوست قصير جدا",
+  "story_post": "اكتب سطرين جذابين للستوري",
+  "reel_idea": "فكرة فيديو ريلز",
+  "best_images": ["path1", "path2"],
+  "cover_image": "path1",
   "selling_points": [],
   "customer_questions": [],
-  "carousel_order": [],
-  "best_images": [],
-  "cover_image": ""
+  "carousel_order": []
 }}
 """
 
