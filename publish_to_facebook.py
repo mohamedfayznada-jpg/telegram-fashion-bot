@@ -14,26 +14,22 @@ if not PAGE_ID or not ACCESS_TOKEN:
     exit(0)
 
 # ==============================
-# دالة نشر الستوري (خطة الاختراق لخطأ Code 1)
+# دالة نشر الستوري (الضربة القاضية لخطأ Code 1)
 # ==============================
 def post_story(image_path):
     if not os.path.exists(image_path): 
         return
     print("🚀 جاري نشر الستوري...")
-    url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photo_stories"
     
-    # فيسبوك أحياناً يرفض التنسيق، هنجرب نبعت الملف بـ 3 تنسيقات مختلفة!
+    # السر هنا: وضع التوكن في الرابط نفسه لتجنب خطأ المصادقة مع رفع الملفات
+    url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photo_stories?access_token={ACCESS_TOKEN}"
+    
     for attempt in range(3):
         try:
             with open(image_path, "rb") as img:
-                if attempt == 0:
-                    files = {"source": img} # إرسال خام
-                elif attempt == 1:
-                    files = {"source": ("story.jpg", img, "image/jpeg")} # إرسال بتعريف صريح
-                else:
-                    files = {"source": ("story.jpg", img)} # إرسال باسم فقط
-                    
-                response = requests.post(url, data={"access_token": ACCESS_TOKEN}, files=files)
+                # نرسل الصورة فقط، بدون إرفاق أي داتا أخرى
+                files = {"source": ("story.jpg", img, "image/jpeg")}
+                response = requests.post(url, files=files, timeout=30)
                 res_data = response.json()
                 
                 if "id" in res_data:
@@ -104,12 +100,14 @@ try:
 except: 
     caption = "كوليكشن جديد متاح الآن."
 
-url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos"
+# وضع التوكن في الرابط هنا أيضاً للبوست الأساسي لزيادة الأمان والموثوقية
+url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos?access_token={ACCESS_TOKEN}"
 
 try:
     print("🚀 جاري نشر البوست الأساسي...")
     with open("marketing_collage.jpg", "rb") as img:
-        response = requests.post(url, data={"caption": caption, "access_token": ACCESS_TOKEN}, files={"source": ("post.jpg", img, "image/jpeg")})
+        # إرسال الصورة والوصف فقط
+        response = requests.post(url, data={"caption": caption}, files={"source": ("post.jpg", img, "image/jpeg")})
         
     res_data = response.json()
     if "id" in res_data:
