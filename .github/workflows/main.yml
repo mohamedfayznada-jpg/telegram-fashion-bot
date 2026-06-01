@@ -2,11 +2,11 @@ name: Fastyle AI Marketing Pipeline
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # يشتغل كل 15 دقيقة
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write # السماح للبوت بحفظ ذاكرة المنتجات المنشورة في جيتهاب
+  contents: write
 
 jobs:
   run-pipeline:
