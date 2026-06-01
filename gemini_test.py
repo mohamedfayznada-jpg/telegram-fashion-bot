@@ -65,7 +65,7 @@ for file in product.get("images", []):
         except Exception as e:
             print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
 
-# 3. الاتصال بـ OpenRouter (الحل النهائي)
+# 3. الاتصال بـ OpenRouter
 api_key = os.environ.get("OPENROUTER_API_KEY")
 if not api_key:
     print("❌ مفتاح OPENROUTER_API_KEY غير موجود في الـ Secrets!")
@@ -77,9 +77,8 @@ headers = {
 }
 
 data = {
-    "model": "google/gemini-2.0-flash-001", # نفس أحدث موديل من جوجل بس من خلال سيرفراتهم
-    "messages": [{"role": "user", "content": content_array}],
-    "response_format": {"type": "json_object"}
+    "model": "google/gemini-1.5-flash", # تم تعديل الاسم ليتوافق مع سيرفرات OpenRouter
+    "messages": [{"role": "user", "content": content_array}]
 }
 
 result = None
@@ -101,8 +100,15 @@ else:
     print("❌ فشل الاتصال بـ OpenRouter.")
     exit(1)
 
-# 4. حفظ المخرجات
+# 4. تنظيف وحفظ المخرجات
 print("\nRAW_RESPONSE:\n", result)
+
+# استخراج الـ JSON لو الموديل رجعه جوه علامات ```json
+if "```json" in result:
+    result = result.split("```json")[1].split("```")[0].strip()
+elif "```" in result:
+    result = result.split("```")[1].split("```")[0].strip()
+
 with open("ai_result.json", "w", encoding="utf-8") as f:
     f.write(result)
 
