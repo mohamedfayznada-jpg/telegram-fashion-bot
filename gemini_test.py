@@ -1,26 +1,29 @@
 import os
 import json
 import shutil
+import time
 from PIL import Image
 from google import genai
-from google.genai import types # التعديل: استيراد types للتحكم في نوع المخرجات
+from google.genai import types, errors # تم استيراد errors لاصطياد أخطاء السيرفر
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
+# 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
+# 2. تجهيز الصور
 images = []
 for file in product["images"]:
     if os.path.exists(file):
         try:
             images.append(Image.open(file))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ تعذر فتح الصورة {file}: {e}")
 
 available_images = "\n".join(product["images"])
 
-# نفس الـ Prompt العبقري بتاعك ماتغيرش فيه حاجة
+# 3. إعداد الـ Prompt
 prompt = f"""
 You are an expert Facebook fashion marketer.
 
@@ -76,23 +79,43 @@ Return ONLY valid JSON:
 
 contents = images + [prompt]
 
-# التعديل هنا: إجبار Gemini على إرجاع JSON سليم
-response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents=contents,
-    config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-    )
-)
+# 4. استدعاء Gemini مع آلية إعادة المحاولة (Retry Mechanism)
+max_retries = 3
+result = None
 
-result = response.text
+for attempt in range(max_retries):
+    try:
+        print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/{max_retries})...")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        )
+        result = response.text
+        break  # خروج من اللوب فوراً في حالة النجاح
+        
+    except errors.APIError as e:
+        # التقاط أخطاء الضغط على السيرفر (503) أو تخطي الحد المسموح (429)
+        if e.code in [503, 429]:
+            print(f"⚠️ سيرفر Gemini مشغول (الخطأ {e.code}). انتظار 10 ثواني...")
+            time.sleep(10)
+        else:
+            # لو خطأ مختلف، يتم إظهاره وإيقاف البرنامج
+            raise e
+else:
+    # سيتم تنفيذ هذا الجزء فقط إذا استنفذ البرنامج كل المحاولات وفشل
+    print("❌ فشلت جميع المحاولات للاتصال بـ Gemini بسبب الضغط على السيرفر.")
+    exit(1)
+
+# 5. معالجة وحفظ المخرجات
 print("\nRAW_RESPONSE:\n")
 print(result)
 
 with open("ai_result.json", "w", encoding="utf-8") as f:
     f.write(result)
 
-# مفيش داعي لعملية التنظيف المعقدة لأن المخرجات دلوقتي JSON صافي مضمون
 try:
     data = json.loads(result)
 except Exception as e:
@@ -107,9 +130,10 @@ print("\nFILES_IN_DOWNLOADS:\n")
 if os.path.exists("downloads"):
     for f in os.listdir("downloads"):
         print(os.path.join("downloads", f))
-         
+
+# 6. تجهيز حزمة التسويق وتصدير الملفات
 marketing_package = {
-    "product_code": product["product_code"],
+    "product_code": product.get("product_code", ""),
     "cover_image": data.get("cover_image", ""),
     "best_images": data.get("best_images", []),
     "facebook_post_soft": data.get("facebook_post_soft", ""),
@@ -126,39 +150,39 @@ marketing_package = {
 with open("marketing_package.json", "w", encoding="utf-8") as f:
     json.dump(marketing_package, f, ensure_ascii=False, indent=2)
 
+# تقييد عدد الصور لـ 4 كحد أقصى للبوستات
 if len(data.get("best_images", [])) > 4:
     data["best_images"] = data["best_images"][:4]
 
 if len(data.get("carousel_order", [])) > 4:
     data["carousel_order"] = data["carousel_order"][:4]
 
-with open("facebook_post_soft.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("facebook_post_soft", ""))
+# حفظ النصوص في ملفات منفصلة
+files_to_write = {
+    "facebook_post_soft.txt": "facebook_post_soft",
+    "facebook_post_sales.txt": "facebook_post_sales",
+    "facebook_post_viral.txt": "facebook_post_viral",
+    "facebook_post_short.txt": "facebook_post_short",
+    "story_post.txt": "story_post",
+    "reel_idea.txt": "reel_idea"
+}
 
-with open("facebook_post_sales.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("facebook_post_sales", ""))
+for filename, key in files_to_write.items():
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(data.get(key, ""))
 
-with open("facebook_post_viral.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("facebook_post_viral", ""))
+# حفظ القوائم في ملفات JSON
+json_files_to_write = {
+    "selling_points.json": "selling_points",
+    "customer_questions.json": "customer_questions",
+    "carousel_order.json": "carousel_order"
+}
 
-with open("facebook_post_short.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("facebook_post_short", ""))
+for filename, key in json_files_to_write.items():
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data.get(key, []), f, ensure_ascii=False, indent=2)
 
-with open("story_post.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("story_post", ""))
-
-with open("reel_idea.txt", "w", encoding="utf-8") as f:
-    f.write(data.get("reel_idea", ""))
-
-with open("selling_points.json", "w", encoding="utf-8") as f:
-    json.dump(data.get("selling_points", []), f, ensure_ascii=False, indent=2)
-
-with open("customer_questions.json", "w", encoding="utf-8") as f:
-    json.dump(data.get("customer_questions", []), f, ensure_ascii=False, indent=2)
-
-with open("carousel_order.json", "w", encoding="utf-8") as f:
-    json.dump(data.get("carousel_order", []), f, ensure_ascii=False, indent=2)
-
+# 7. نسخ الصور المختارة
 os.makedirs("selected_images", exist_ok=True)
 
 for image_path in data.get("best_images", []):
