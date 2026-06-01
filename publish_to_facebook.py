@@ -41,7 +41,6 @@ if os.path.exists(post_file) and os.path.exists(image_file):
         caption = f.read().strip()
         
     print("🎨 جاري وضع لوجو Fastyle...")
-    final_image_to_post = add_clean_watermark(image_file)
 
     print("🚀 جاري النشر على الفيسبوك (البوست الأساسي)...")
     url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos"
