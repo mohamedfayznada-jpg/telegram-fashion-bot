@@ -13,23 +13,46 @@ if not PAGE_ID or not ACCESS_TOKEN:
     print("❌ بيانات الفيسبوك غير موجودة.")
     exit(0)
 
+# ==============================
+# دالة نشر الستوري (خطة الاختراق لخطأ Code 1)
+# ==============================
 def post_story(image_path):
-    if not os.path.exists(image_path):
+    if not os.path.exists(image_path): 
         return
     print("🚀 جاري نشر الستوري...")
     url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photo_stories"
-    try:
-        with open(image_path, "rb") as img:
-            response = requests.post(url, data={"access_token": ACCESS_TOKEN}, files={"source": ("story.jpg", img, "image/jpeg")})
-            if "id" in response.json():
-                print("✅ تم نشر الستوري بنجاح.")
-            else:
-                print(f"⚠️ خطأ في نشر الستوري: {response.text}")
-    except Exception as e:
-        print(f"⚠️ فشل نشر الستوري: {e}")
+    
+    # فيسبوك أحياناً يرفض التنسيق، هنجرب نبعت الملف بـ 3 تنسيقات مختلفة!
+    for attempt in range(3):
+        try:
+            with open(image_path, "rb") as img:
+                if attempt == 0:
+                    files = {"source": img} # إرسال خام
+                elif attempt == 1:
+                    files = {"source": ("story.jpg", img, "image/jpeg")} # إرسال بتعريف صريح
+                else:
+                    files = {"source": ("story.jpg", img)} # إرسال باسم فقط
+                    
+                response = requests.post(url, data={"access_token": ACCESS_TOKEN}, files=files)
+                res_data = response.json()
+                
+                if "id" in res_data:
+                    print("✅ تم نشر الستوري بنجاح!")
+                    return
+                else:
+                    print(f"⚠️ محاولة {attempt + 1} فشلت: {res_data}")
+                    time.sleep(5)
+        except Exception as e:
+            print(f"⚠️ خطأ أثناء الاتصال: {e}")
+            time.sleep(5)
+            
+    print("❌ فشل نشر الستوري بعد جميع المحاولات.")
 
+# ==============================
+# دالة نشر الريلز 
+# ==============================
 def upload_reel(video_path, description):
-    if not os.path.exists(video_path):
+    if not os.path.exists(video_path): 
         return
     print("🚀 جاري رفع ونشر الريلز...")
     file_size = str(os.path.getsize(video_path))
@@ -37,8 +60,7 @@ def upload_reel(video_path, description):
     
     try:
         start_res = requests.post(start_url, data={'upload_phase': 'start', 'access_token': ACCESS_TOKEN, 'file_size': file_size}).json()
-        if 'video_id' not in start_res:
-            print("⚠️ خطأ في بدء رفع الريلز.")
+        if 'video_id' not in start_res: 
             return
             
         video_id = start_res['video_id']
@@ -63,25 +85,23 @@ def upload_reel(video_path, description):
                 'access_token': ACCESS_TOKEN
             })
             print("🎉 تم نشر فيديو الريلز بنجاح.")
-        else:
-            print(f"⚠️ خطأ في استكمال الريلز: {upload_res.text}")
     except Exception as e:
         print(f"⚠️ فشل نشر الريلز: {e}")
 
 # ==============================
-# التنفيذ وتحديث الذاكرة
+# التنفيذ الرئيسي
 # ==============================
 try:
-    with open("product.json", "r", encoding="utf-8") as f:
+    with open("product.json", "r", encoding="utf-8") as f: 
         product_data = json.load(f)
     product_id = product_data.get("product_id")
-except Exception:
+except: 
     product_id = None
 
 try:
-    with open("facebook_post_sales.txt", "r", encoding="utf-8") as f:
+    with open("facebook_post_sales.txt", "r", encoding="utf-8") as f: 
         caption = f.read().strip()
-except Exception:
+except: 
     caption = "كوليكشن جديد متاح الآن."
 
 url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos"
@@ -95,18 +115,16 @@ try:
     if "id" in res_data:
         print("✅ تم نشر البوست الأساسي بنجاح!")
         
-        # تحديث الذاكرة لمنع تكرار المنتج في المستقبل
         if product_id:
             try:
-                with open("posted_ids.json", "r") as f:
+                with open("posted_ids.json", "r") as f: 
                     posted_ids = json.load(f)
-            except Exception:
+            except: 
                 posted_ids = []
                 
             if product_id not in posted_ids:
                 posted_ids.append(product_id)
-                # الاحتفاظ بآخر 1000 منتج فقط
-                with open("posted_ids.json", "w") as f:
+                with open("posted_ids.json", "w") as f: 
                     json.dump(posted_ids[-1000:], f)
                 print("💾 تم حفظ رقم المنتج في الذاكرة بنجاح.")
 
@@ -118,4 +136,4 @@ try:
     else:
         print(f"❌ خطأ من فيسبوك أثناء نشر البوست الأساسي: {res_data}")
 except Exception as e:
-    print(f"❌ خطأ غير متوقع أثناء عملية النشر: {e}")
+    print(f"❌ خطأ غير متوقع: {e}")
