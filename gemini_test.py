@@ -2,31 +2,41 @@ import os
 import json
 import shutil
 import time
-import random
 import base64
 import requests
+import io
+from PIL import Image
 
 # 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
-# 2. تحويل الصور لبيانات خام (Base64)
+# 2. 💡 الحل السحري الثاني: ضغط الصور قبل الإرسال (Smart Compression)
 image_parts = []
 for file in product.get("images", []):
     if os.path.exists(file):
         try:
-            with open(file, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                ext = os.path.splitext(file)[1].lower().replace('.', '')
-                mime_type = f"image/{ext}" if ext in ['jpg', 'jpeg', 'png', 'webp'] else "image/jpeg"
+            with Image.open(file) as img:
+                # تصغير الأبعاد لـ 800 بيكسل كحد أقصى
+                img.thumbnail((800, 800))
+                # تحويل الصورة لـ RGB لضمان التوافق مع JPEG
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # حفظ الصورة في الذاكرة الوهمية (Buffer) بجودة 75%
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=75)
+                
+                # تشفير الصورة المصغرة
+                encoded_string = base64.b64encode(buffer.getvalue()).decode('utf-8')
                 image_parts.append({
                     "inline_data": {
-                        "mime_type": mime_type,
+                        "mime_type": "image/jpeg",
                         "data": encoded_string
                     }
                 })
         except Exception as e:
-            pass
+            print(f"⚠️ تعذر ضغط أو قراءة الصورة {file}: {e}")
 
 available_images = "\n".join(product.get("images", []))
 
@@ -38,7 +48,6 @@ prompt_text = f"""
 بيانات المنتج:
 - كود الموديل: {product.get("product_code", "")}
 - الوصف الأصلي: {product.get("description", "")}
-- مسارات الصور: {available_images}
 
 شروط الكتابة:
 1. اللهجة: مصرية شبابية جذابة جداً.
@@ -64,9 +73,7 @@ if not api_key:
     print("❌ مفتاح GEMINI_API_KEY غير موجود!")
     exit(1)
 
-# التركيز على الموديل الوحيد اللي شغال
 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-
 headers = {"Content-Type": "application/json"}
 parts = [{"text": prompt_text}] + image_parts
 payload = {
@@ -75,42 +82,31 @@ payload = {
 }
 
 result = None
+print("🚀 جاري إرسال البيانات المحسنة والمضغوطة إلى Gemini...")
 
-# انتظار مبدئي لتجنب زحمة الدقيقة الأولى
-sleep_time = random.randint(20, 45)
-print(f"⏳ انتظار {sleep_time} ثانية قبل بدء الاتصال...")
-time.sleep(sleep_time)
-
-# 4. الاتصال مع الصبر الاستراتيجي
-for attempt in range(5):
-    print(f"\n🔄 جاري الاتصال بموديل gemini-2.0-flash (محاولة {attempt + 1}/5)...")
+for attempt in range(3):
     try:
         response = requests.post(url, headers=headers, json=payload)
         
         if response.status_code == 200:
             result = response.json()['candidates'][0]['content']['parts'][0]['text']
-            print("✅ نجح الاتصال واستلام المحتوى بامتياز!")
+            print("✅ نجح الاتصال واستلام المحتوى في لمح البصر!")
             break
         elif response.status_code == 429:
-            # هنا السر: هنستنى 65 ثانية عشان الحصة المجانية تتجدد 100%
-            print("⚠️ زحام على السيرفر (الخطأ 429). حصة جوجل المجانية تتجدد كل دقيقة.")
-            print("⏳ جاري الانتظار 65 ثانية لتجديد الحصة...")
-            time.sleep(65)
-        elif response.status_code >= 500:
-            print(f"⚠️ خطأ داخلي من جوجل ({response.status_code}). انتظار 30 ثانية...")
+            print("⚠️ زحام على السيرفر (الخطأ 429). انتظار 30 ثانية...")
             time.sleep(30)
         else:
             print(f"⚠️ خطأ {response.status_code}: {response.text}")
-            break
+            time.sleep(10)
     except Exception as e:
         print(f"⚠️ خطأ في الاتصال: {e}")
-        time.sleep(15)
+        time.sleep(10)
 
 if not result:
     print("\n❌ فشل الاتصال بجوجل تماماً.")
     exit(1)
 
-# 5. تنظيف وتصدير الملفات
+# 4. تنظيف وتصدير الملفات
 print("\n✅ جاري تجهيز الملفات النهائية...")
 if result.startswith("```json"):
     result = result.split("```json")[1].split("```")[0].strip()
