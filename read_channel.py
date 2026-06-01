@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import random
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
@@ -8,37 +9,60 @@ API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 SESSION_STRING = os.environ.get("TELEGRAM_SESSION", "").strip()
 
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH, device_model="Desktop", system_version="Windows 10", app_version="1.0")
+client = TelegramClient(
+    StringSession(SESSION_STRING), 
+    API_ID, 
+    API_HASH, 
+    device_model="Desktop", 
+    system_version="Windows 10", 
+    app_version="1.0"
+)
 
-IGNORE_WORDS = ["السلام عليكم", "العمولات", "اوردر", "يمنشن", "قاهره", "جيزه", "عيد", "اجازة"]
+IGNORE_WORDS = [
+    "السلام عليكم", "العمولات", "اوردر", "يمنشن", "قاهره", 
+    "جيزه", "عيد", "اجازة", "استئناف العمل"
+]
 
 def extract_price(text):
+    # تحويل الأرقام العربية إلى إنجليزية لتسهيل البحث
     arabic_to_english = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
     text = text.translate(arabic_to_english)
-    patterns = [r"السعر\s*[:\-]?\s*(\d+)", r"سعر\s*القطعه\s*(\d+)", r"(\d+)\s*ج\.?م", r"(\d+)\s*ج", r"(\d+)\s*جنيه"]
+    
+    patterns = [
+        r"السعر\s*[:\-]?\s*(\d+)", 
+        r"سعر\s*القطعه\s*(\d+)", 
+        r"(\d+)\s*ج\.?م", 
+        r"(\d+)\s*ج", 
+        r"(\d+)\s*جنيه"
+    ]
+    
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
-        if match: return match.group(1)
+        if match:
+            return match.group(1)
     return "غير محدد"
 
 def extract_product_code(text):
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
-    for line in reversed(text.splitlines()):
+    lines = text.splitlines()
+    
+    for line in reversed(lines):
         match = re.search(r"(\d{3,})", line.strip())
-        if match: return f"FS{match.group(1)}"
-    import random
+        if match:
+            return f"FS{match.group(1)}"
+            
     return f"FS{random.randint(100, 999)}"
 
 async def main():
     await client.start()
     channel = await client.get_entity("yasminstoriii")
-    messages = await client.get_messages(channel, limit=100) # فحص آخر 100 رسالة
+    messages = await client.get_messages(channel, limit=100)
 
-    # قراءة ذاكرة المنتجات المنشورة مسبقاً
+    # محاولة قراءة المنتجات المنشورة مسبقاً
     try:
         with open("posted_ids.json", "r") as f:
             posted_ids = json.load(f)
-    except:
+    except Exception:
         posted_ids = []
 
     product_msg = None
@@ -46,7 +70,18 @@ async def main():
     # البحث من الأقدم للأحدث لنشر المنتجات بالترتيب
     for msg in reversed(messages):
         text = (msg.message or "").strip()
-        if not text or any(w.lower() in text.lower() for w in IGNORE_WORDS):
+        
+        # تجاهل رسائل الإدمن والإعلانات
+        if not text:
+            continue
+            
+        is_ignored = False
+        for word in IGNORE_WORDS:
+            if word.lower() in text.lower():
+                is_ignored = True
+                break
+                
+        if is_ignored:
             continue
             
         # التحقق إذا كان المنتج لم يُنشر من قبل
@@ -56,20 +91,26 @@ async def main():
 
     if not product_msg:
         print("✅ لا يوجد منتجات جديدة لنشرها حالياً.")
-        # نكتب ملف فاضي عشان باقي الأكواد تقف باحترام
-        with open("skip_flag.txt", "w") as f: f.write("skip")
+        with open("skip_flag.txt", "w", encoding="utf-8") as f:
+            f.write("skip")
         return
 
-    # تجميع الصور التابعة للمنتج الجديد
+    print(f"🎯 تم صيد منتج جديد! جاري تجميع الصور الخاصة به...")
+    
     image_messages = []
     found_start = False
+    
     for msg in reversed(messages):
         if msg.id == product_msg.id:
             found_start = True
             continue
+            
         if found_start:
-            if msg.message and msg.message.strip(): break # وقف لو لقيت رسالة نصية جديدة
-            if msg.media: image_messages.append(msg)
+            # التوقف عند ظهور رسالة نصية جديدة (منتج جديد)
+            if msg.message and msg.message.strip():
+                break
+            if msg.media:
+                image_messages.append(msg)
 
     os.makedirs("downloads", exist_ok=True)
     downloaded = []
@@ -81,6 +122,8 @@ async def main():
 
     price = extract_price(product_msg.message)
     product_code = extract_product_code(product_msg.message)
+    
+    # تنظيف الوصف من السعر لعدم تشويش الذكاء الاصطناعي
     description = re.sub(r"السعر.*", "", product_msg.message, flags=re.IGNORECASE).strip()
 
     product_data = {
@@ -92,9 +135,9 @@ async def main():
     }
 
     with open("product.json", "w", encoding="utf-8") as f:
-        json.dump(product_data, f, ensure_ascii=False, indent=2)
+        json.dump(product_data, f, ensure_ascii=False, indent=4)
         
-    print(f"🎯 تم صيد منتج جديد! كود: {product_code}")
+    print(f"✅ تم حفظ بيانات المنتج (الكود: {product_code} | السعر: {price}).")
 
 with client:
     client.loop.run_until_complete(main())
