@@ -1,42 +1,31 @@
 import os
 import json
 import shutil
+import base64
 import time
-from PIL import Image
-from google import genai
-from google.genai import types, errors # تم استيراد errors لاصطياد أخطاء السيرفر
-
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+import requests
 
 # 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
-# 2. تجهيز الصور
-images = []
-for file in product["images"]:
-    if os.path.exists(file):
-        try:
-            images.append(Image.open(file))
-        except Exception as e:
-            print(f"⚠️ تعذر فتح الصورة {file}: {e}")
+available_images = "\n".join(product.get("images", []))
 
-available_images = "\n".join(product["images"])
-
+# 2. إعداد الـ Prompt الاحترافي
 prompt = f"""
 أنت خبير تسويق أزياء مصري محترف (Fashion Copywriter).
 مهمتك كتابة محتوى لبراند ملابس مصري راقي اسمه "Fastyle".
 
 بيانات المنتج:
-- كود الموديل: {product["product_code"]}
-- الوصف الأصلي: {product["description"]}
+- كود الموديل: {product.get("product_code", "")}
+- الوصف الأصلي: {product.get("description", "")}
 - مسارات الصور: {available_images}
 
 شروط الكتابة (صارمة جداً):
 1. اللهجة: مصرية شبابية، راقية، وجذابة جداً (زي بلوجرز الفاشون).
-2. الـ Hook (أول سطر): لازم يكون سطر بيخطف العين ويلعب على المشاعر (مثلاً: "القطعة اللي هتحلي أي خروجة!" أو "عشان شياكتك متتقارنش بحد..").
-3. التنسيق: قسم الكلام لفقرات قصيرة جداً (سطرين بالكتير) واستخدم مسافات عشان العين ترتاح.
-4. الإيموجيز: استخدم إيموجيز راقية وهادية (✨, 🎀, 👗, 🤍) وبلاش زحمة.
+2. الـ Hook (أول سطر): لازم يكون سطر بيخطف العين ويلعب على المشاعر.
+3. التنسيق: قسم الكلام لفقرات قصيرة جداً (سطرين بالكتير).
+4. الإيموجيز: استخدم إيموجيز راقية وهادية (✨, 🎀, 👗, 🤍).
 5. الكود: كود الموديل ينزل في سطر لوحده خالص في آخر البوست.
 6. المصداقية: إياك تخترع ألوان، خامات، أو مقاسات مش موجودة في الوصف الأصلي.
 
@@ -56,122 +45,101 @@ Return ONLY valid JSON with this exact structure:
 }}
 """
 
-contents = images + [prompt]
+# تجهيز البيانات للإرسال (النص + الصور)
+content_array = [{"type": "text", "text": prompt}]
 
-# 4. استدعاء Gemini مع آلية تصاعدية لإعادة المحاولة (Exponential Backoff)
-max_retries = 5 
-result = None
+for file in product.get("images", []):
+    if os.path.exists(file):
+        try:
+            with open(file, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                ext = os.path.splitext(file)[1].lower().replace('.', '')
+                mime_type = f"image/{ext}" if ext in ['jpg', 'jpeg', 'png', 'webp'] else "image/jpeg"
+                
+                content_array.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{encoded_string}"
+                    }
+                })
+        except Exception as e:
+            print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
 
-for attempt in range(max_retries):
-    try:
-        print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/{max_retries})...")
-        response = client.models.generate_content(
-            model="gemini-2.0-flash", # الموديل الرسمي والأحدث والأكثر استقراراً
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            )
-        )
-        result = response.text
-        break  # خروج من اللوب فوراً في حالة النجاح
-        
-    except Exception as e:
-        error_msg = str(e)
-        # اصطياد أخطاء الضغط (429 و 503) بأمان تام بدون ما الكود يضرب
-        if "429" in error_msg or "503" in error_msg:
-            wait_time = 15 * (attempt + 1)
-            print(f"⚠️ سيرفر Gemini مشغول. انتظار {wait_time} ثانية... (محاولة {attempt + 1})")
-            time.sleep(wait_time)
-        else:
-            # لو خطأ مختلف تماماً يتم إظهاره
-            raise e
-else:
-    # سيتم تنفيذ هذا الجزء فقط إذا استنفذ البرنامج كل المحاولات وفشل
-    print("❌ فشلت جميع المحاولات للاتصال بـ Gemini بسبب الضغط الشديد.")
+# 3. الاتصال بـ OpenRouter (الحل النهائي)
+api_key = os.environ.get("OPENROUTER_API_KEY")
+if not api_key:
+    print("❌ مفتاح OPENROUTER_API_KEY غير موجود في الـ Secrets!")
     exit(1)
 
-# 5. معالجة وحفظ المخرجات
-print("\nRAW_RESPONSE:\n")
-print(result)
+headers = {
+    "Authorization": f"Bearer {api_key}",
+    "Content-Type": "application/json"
+}
 
+data = {
+    "model": "google/gemini-2.0-flash-001", # نفس أحدث موديل من جوجل بس من خلال سيرفراتهم
+    "messages": [{"role": "user", "content": content_array}],
+    "response_format": {"type": "json_object"}
+}
+
+result = None
+for attempt in range(3):
+    try:
+        print(f"⏳ جاري الاتصال بـ OpenRouter (محاولة {attempt + 1}/3)...")
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+        
+        if response.status_code == 200:
+            result = response.json()['choices'][0]['message']['content']
+            break
+        else:
+            print(f"⚠️ خطأ من السيرفر: {response.text}")
+            time.sleep(5)
+    except Exception as e:
+        print(f"⚠️ خطأ في الاتصال: {e}")
+        time.sleep(5)
+else:
+    print("❌ فشل الاتصال بـ OpenRouter.")
+    exit(1)
+
+# 4. حفظ المخرجات
+print("\nRAW_RESPONSE:\n", result)
 with open("ai_result.json", "w", encoding="utf-8") as f:
     f.write(result)
 
 try:
-    data = json.loads(result)
+    data_json = json.loads(result)
 except Exception as e:
     print("\nJSON ERROR:\n", result)
     raise e
 
-print("\nBEST_IMAGES_FROM_GEMINI:\n")
-for img in data.get("best_images", []):
-    print(img)
-
-print("\nFILES_IN_DOWNLOADS:\n")
-if os.path.exists("downloads"):
-    for f in os.listdir("downloads"):
-        print(os.path.join("downloads", f))
-
-# 6. تجهيز حزمة التسويق وتصدير الملفات
 marketing_package = {
     "product_code": product.get("product_code", ""),
-    "cover_image": data.get("cover_image", ""),
-    "best_images": data.get("best_images", []),
-    "facebook_post_soft": data.get("facebook_post_soft", ""),
-    "facebook_post_sales": data.get("facebook_post_sales", ""),
-    "facebook_post_viral": data.get("facebook_post_viral", ""),
-    "facebook_post_short": data.get("facebook_post_short", ""),
-    "story_post": data.get("story_post", ""),
-    "reel_idea": data.get("reel_idea", ""),
-    "selling_points": data.get("selling_points", []),
-    "customer_questions": data.get("customer_questions", []),
-    "carousel_order": data.get("carousel_order", [])
+    "cover_image": data_json.get("cover_image", ""),
+    "best_images": data_json.get("best_images", []),
+    "facebook_post_sales": data_json.get("facebook_post_sales", ""),
+    "story_post": data_json.get("story_post", ""),
+    "reel_idea": data_json.get("reel_idea", ""),
 }
-
-with open("marketing_package.json", "w", encoding="utf-8") as f:
-    json.dump(marketing_package, f, ensure_ascii=False, indent=2)
-
-# تقييد عدد الصور لـ 4 كحد أقصى للبوستات
-if len(data.get("best_images", [])) > 4:
-    data["best_images"] = data["best_images"][:4]
-
-if len(data.get("carousel_order", [])) > 4:
-    data["carousel_order"] = data["carousel_order"][:4]
 
 # حفظ النصوص في ملفات منفصلة
 files_to_write = {
-    "facebook_post_soft.txt": "facebook_post_soft",
     "facebook_post_sales.txt": "facebook_post_sales",
-    "facebook_post_viral.txt": "facebook_post_viral",
-    "facebook_post_short.txt": "facebook_post_short",
     "story_post.txt": "story_post",
     "reel_idea.txt": "reel_idea"
 }
 
 for filename, key in files_to_write.items():
     with open(filename, "w", encoding="utf-8") as f:
-        f.write(data.get(key, ""))
+        f.write(data_json.get(key, ""))
 
-# حفظ القوائم في ملفات JSON
-json_files_to_write = {
-    "selling_points.json": "selling_points",
-    "customer_questions.json": "customer_questions",
-    "carousel_order.json": "carousel_order"
-}
-
-for filename, key in json_files_to_write.items():
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data.get(key, []), f, ensure_ascii=False, indent=2)
-
-# 7. نسخ الصور المختارة
+# نسخ أفضل 4 صور
 os.makedirs("selected_images", exist_ok=True)
-
-for image_path in data.get("best_images", []):
+for image_path in data_json.get("best_images", [])[:4]:
     if os.path.exists(image_path):
         shutil.copy(image_path, os.path.join("selected_images", os.path.basename(image_path)))
 
-cover_image = data.get("cover_image", "")
+cover_image = data_json.get("cover_image", "")
 if cover_image and os.path.exists(cover_image):
     shutil.copy(cover_image, "cover_image.jpg")
 
-print("\nFILES_CREATED_SUCCESSFULLY")
+print("\n✅ تم تجهيز محتوى الذكاء الاصطناعي بنجاح من OpenRouter!")
