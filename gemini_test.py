@@ -59,14 +59,14 @@ Return ONLY valid JSON with this exact structure:
 contents = images + [prompt]
 
 # 4. استدعاء Gemini مع آلية تصاعدية لإعادة المحاولة (Exponential Backoff)
-max_retries = 5 # زودنا المحاولات لـ 5
+max_retries = 5 
 result = None
 
 for attempt in range(max_retries):
     try:
         print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/{max_retries})...")
         response = client.models.generate_content(
-            model="gemini-1.5-flash", # استخدمنا النسخة الأكثر استقراراً للحسابات المجانية
+            model="gemini-2.0-flash", # الموديل الرسمي والأحدث والأكثر استقراراً
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -75,19 +75,19 @@ for attempt in range(max_retries):
         result = response.text
         break  # خروج من اللوب فوراً في حالة النجاح
         
-    except errors.APIError as e:
-        # التقاط أخطاء الضغط على السيرفر (503) أو تخطي الحد المسموح (429)
-        if e.code in [503, 429]:
-            # وقت الانتظار بيزيد تدريجياً: 15، 30، 45، 60، 75 ثانية
+    except Exception as e:
+        error_msg = str(e)
+        # اصطياد أخطاء الضغط (429 و 503) بأمان تام بدون ما الكود يضرب
+        if "429" in error_msg or "503" in error_msg:
             wait_time = 15 * (attempt + 1)
-            print(f"⚠️ تخطي الحد المسموح أو السيرفر مشغول (الخطأ {e.code}). انتظار {wait_time} ثانية...")
+            print(f"⚠️ سيرفر Gemini مشغول. انتظار {wait_time} ثانية... (محاولة {attempt + 1})")
             time.sleep(wait_time)
         else:
-            # لو خطأ مختلف، يتم إظهاره وإيقاف البرنامج
+            # لو خطأ مختلف تماماً يتم إظهاره
             raise e
 else:
     # سيتم تنفيذ هذا الجزء فقط إذا استنفذ البرنامج كل المحاولات وفشل
-    print("❌ فشلت جميع المحاولات للاتصال بـ Gemini بسبب تخطي الحد المسموح للاستخدام المجاني.")
+    print("❌ فشلت جميع المحاولات للاتصال بـ Gemini بسبب الضغط الشديد.")
     exit(1)
 
 # 5. معالجة وحفظ المخرجات
