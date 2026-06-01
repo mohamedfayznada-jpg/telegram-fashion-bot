@@ -1,6 +1,5 @@
 import os
 import requests
-from PIL import Image
 
 PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID")
 ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN")
@@ -8,7 +7,6 @@ ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN")
 if not PAGE_ID or not ACCESS_TOKEN:
     print("❌ بيانات الفيسبوك غير موجودة. سيتم تخطي النشر.")
     exit(0)
-
 
 def post_story(image_path):
     if not os.path.exists(image_path):
@@ -33,14 +31,13 @@ def post_story(image_path):
 # التنفيذ الرئيسي
 # ==============================
 post_file = "facebook_post_sales.txt"
-image_file = "marketing_collage.jpg"
+# الصورة هنا بقت اللي طالعة جاهزة من كود معالجة الصور
+image_file = "marketing_collage.jpg" 
 story_image = "cover_image.jpg" 
 
 if os.path.exists(post_file) and os.path.exists(image_file):
     with open(post_file, "r", encoding="utf-8") as f:
         caption = f.read().strip()
-        
-    print("🎨 جاري وضع لوجو Fastyle...")
 
     print("🚀 جاري النشر على الفيسبوك (البوست الأساسي)...")
     url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos"
@@ -50,7 +47,8 @@ if os.path.exists(post_file) and os.path.exists(image_file):
         "access_token": ACCESS_TOKEN
     }
     
-    with open(final_image_to_post, "rb") as img:
+    # هنرفع الصورة مباشرة بدون أي تعديلات إضافية
+    with open(image_file, "rb") as img:
         files = {"source": img}
         response = requests.post(url, data=payload, files=files)
         
