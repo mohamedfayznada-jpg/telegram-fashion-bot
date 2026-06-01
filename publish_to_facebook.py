@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 
 PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID")
@@ -10,9 +11,12 @@ if not PAGE_ID or not ACCESS_TOKEN:
 
 def post_story(image_path):
     if not os.path.exists(image_path):
-        print("⚠️ صورة الستوري غير موجودة.")
+        print(f"⚠️ صورة الستوري ({image_path}) غير موجودة.")
         return
         
+    print("⏳ انتظار 8 ثواني قبل رفع الستوري...")
+    time.sleep(8)
+    
     print("🚀 جاري نشر الستوري...")
     url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photo_stories"
     payload = {"access_token": ACCESS_TOKEN}
@@ -31,9 +35,7 @@ def post_story(image_path):
 # التنفيذ الرئيسي
 # ==============================
 post_file = "facebook_post_sales.txt"
-# الصورة هنا بقت اللي طالعة جاهزة من كود معالجة الصور
-image_file = "marketing_collage.jpg" 
-story_image = "cover_image.jpg" 
+image_file = "marketing_collage.jpg"
 
 if os.path.exists(post_file) and os.path.exists(image_file):
     with open(post_file, "r", encoding="utf-8") as f:
@@ -47,7 +49,6 @@ if os.path.exists(post_file) and os.path.exists(image_file):
         "access_token": ACCESS_TOKEN
     }
     
-    # هنرفع الصورة مباشرة بدون أي تعديلات إضافية
     with open(image_file, "rb") as img:
         files = {"source": img}
         response = requests.post(url, data=payload, files=files)
@@ -56,8 +57,8 @@ if os.path.exists(post_file) and os.path.exists(image_file):
     if "id" in res_data:
         print(f"✅ تم نشر البوست بنجاح! رقم البوست: {res_data['id']}")
         
-        # استدعاء دالة نشر الستوري
-        post_story(story_image)
+        # رفع الستوري باستخدام نفس صورة الكولاچ المضمونة
+        post_story(image_file)
         
     else:
         print("❌ حدث خطأ أثناء النشر:", res_data)
