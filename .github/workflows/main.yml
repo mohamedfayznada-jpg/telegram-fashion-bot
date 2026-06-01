@@ -3,7 +3,7 @@ name: Fastyle AI Marketing Pipeline
 on:
   schedule:
     - cron: '0 * * * *' # يعمل كل ساعة
-  workflow_dispatch:
+  workflow_dispatch: # زرار التشغيل اليدوي
 
 jobs:
   run-pipeline:
@@ -23,10 +23,10 @@ jobs:
 
       - name: 1. Scrape Telegram
         env:
-          API_ID: ${{ secrets.TG_API_ID }}
-          API_HASH: ${{ secrets.TG_API_HASH }}
-          TELEGRAM_SESSION: ${{ secrets.TG_SESSION }}
-        run: python scraper.py
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+        run: python read_channel.py
 
       - name: 2. Generate AI Content (Gemini)
         env:
@@ -41,3 +41,9 @@ jobs:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
         run: python publish_to_facebook.py
+        
+      - name: 5. Send Reports to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python send_to_telegram.py
