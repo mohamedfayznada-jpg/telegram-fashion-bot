@@ -19,8 +19,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install telethon pillow requests google-genai "rembg[cpu]" arabic-reshaper python-bidi
-
+          pip install telethon pillow requests google-genai opencv-python numpy
+          
       - name: 1. Scrape Telegram
         env:
           API_ID: ${{ secrets.API_ID }}
