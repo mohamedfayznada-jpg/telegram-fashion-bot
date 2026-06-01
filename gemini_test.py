@@ -1,19 +1,30 @@
 import os
 import json
 import shutil
-import base64
 import time
-import requests
+import random
+from PIL import Image
+from google import genai
+from google.genai import types
 
 # 1. قراءة بيانات المنتج
 with open("product.json", "r", encoding="utf-8") as f:
     product = json.load(f)
 
+# 2. تجهيز الصور للذكاء الاصطناعي
+images = []
+for file in product.get("images", []):
+    if os.path.exists(file):
+        try:
+            images.append(Image.open(file))
+        except Exception as e:
+            print(f"⚠️ تعذر فتح الصورة {file}: {e}")
+
 available_images = "\n".join(product.get("images", []))
 
-# 2. إعداد الـ Prompt الاحترافي
+# 3. إعداد الـ Prompt
 prompt = f"""
-أنت خبير تسويق أزياء مصري محترف (Fashion Copywriter).
+أنت خبير تسويق أزياء مصري محترف.
 مهمتك كتابة محتوى لبراند ملابس مصري راقي اسمه "Fastyle".
 
 بيانات المنتج:
@@ -21,13 +32,11 @@ prompt = f"""
 - الوصف الأصلي: {product.get("description", "")}
 - مسارات الصور: {available_images}
 
-شروط الكتابة (صارمة جداً):
-1. اللهجة: مصرية شبابية، راقية، وجذابة جداً (زي بلوجرز الفاشون).
-2. الـ Hook (أول سطر): لازم يكون سطر بيخطف العين ويلعب على المشاعر.
-3. التنسيق: قسم الكلام لفقرات قصيرة جداً (سطرين بالكتير).
-4. الإيموجيز: استخدم إيموجيز راقية وهادية (✨, 🎀, 👗, 🤍).
-5. الكود: كود الموديل ينزل في سطر لوحده خالص في آخر البوست.
-6. المصداقية: إياك تخترع ألوان، خامات، أو مقاسات مش موجودة في الوصف الأصلي.
+شروط الكتابة:
+1. اللهجة: مصرية شبابية جذابة جداً.
+2. قسم الكلام لفقرات قصيرة.
+3. استخدم إيموجيز راقية (✨, 🎀, 👗, 🤍).
+4. كود الموديل في سطر لوحده في النهاية.
 
 Return ONLY valid JSON with this exact structure:
 {{
@@ -38,109 +47,66 @@ Return ONLY valid JSON with this exact structure:
   "story_post": "اكتب سطرين جذابين للستوري",
   "reel_idea": "فكرة فيديو ريلز",
   "best_images": ["path1", "path2"],
-  "cover_image": "path1",
-  "selling_points": [],
-  "customer_questions": [],
-  "carousel_order": []
+  "cover_image": "path1"
 }}
 """
 
-# تجهيز البيانات للإرسال (النص + الصور)
-content_array = [{"type": "text", "text": prompt}]
+contents = images + [prompt]
 
-for file in product.get("images", []):
-    if os.path.exists(file):
-        try:
-            with open(file, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                ext = os.path.splitext(file)[1].lower().replace('.', '')
-                mime_type = f"image/{ext}" if ext in ['jpg', 'jpeg', 'png', 'webp'] else "image/jpeg"
-                
-                content_array.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{mime_type};base64,{encoded_string}"
-                    }
-                })
-        except Exception as e:
-            print(f"⚠️ تعذر قراءة الصورة {file}: {e}")
+# 💡 الخدعة الثانية: التمويه لتفادي بلوك الـ IP من جوجل
+sleep_time = random.randint(15, 45)
+print(f"⏳ انتظار {sleep_time} ثانية للهروب من زحام سيرفرات GitHub...")
+time.sleep(sleep_time)
 
-# 3. الاتصال بـ OpenRouter (نظام صائد الموديلات المجانية)
-api_key = os.environ.get("OPENROUTER_API_KEY")
+# 4. الاتصال بجوجل بأمان
+api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
-    print("❌ مفتاح OPENROUTER_API_KEY غير موجود في الـ Secrets!")
+    print("❌ مفتاح GEMINI_API_KEY غير موجود!")
     exit(1)
 
-headers = {
-    "Authorization": f"Bearer {api_key}",
-    "Content-Type": "application/json"
-}
-
-# قائمة بأقوى الموديلات المجانية اللي بتدعم قراءة الصور على المنصة
-free_models = [
-    "google/gemini-2.0-pro-exp-02-05:free",
-    "google/gemini-2.0-flash-lite-preview-02-05:free",
-    "google/gemini-exp-1206:free",
-    "qwen/qwen-vl-plus:free",
-    "meta-llama/llama-3.2-90b-vision-instruct:free"
-]
-
+client = genai.Client(api_key=api_key)
 result = None
 
-# اللوب ده هيجرب الموديلات واحد ورا التاني لحد ما واحد فيهم ينجح
-for model_name in free_models:
-    print(f"⏳ جاري تجربة الموديل المجاني: {model_name} ...")
-    data = {
-        "model": model_name,
-        "messages": [{"role": "user", "content": content_array}]
-    }
-    
+for attempt in range(4):
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
-        
-        if response.status_code == 200:
-            result = response.json()['choices'][0]['message']['content']
-            print(f"✅ نجح الاتصال والرد باستخدام الموديل: {model_name}")
-            break
-        else:
-            print(f"⚠️ خطأ من الموديل {model_name}: {response.text}")
-            time.sleep(2) # انتظار ثانيتين قبل تجربة الموديل اللي بعده
+        print(f"⏳ جاري الاتصال بـ Gemini (محاولة {attempt + 1}/4)...")
+        response = client.models.generate_content(
+            model="gemini-1.5-flash", # أسرع وأكثر موديل مستقر ومجاني
+            contents=contents,
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        result = response.text
+        break 
     except Exception as e:
-        print(f"⚠️ خطأ في الاتصال بالموديل: {e}")
-        time.sleep(2)
+        error_msg = str(e).lower()
+        if "429" in error_msg or "503" in error_msg or "quota" in error_msg:
+            wait_t = 30 * (attempt + 1)
+            print(f"⚠️ زحام على السيرفر. سننتظر {wait_t} ثانية...")
+            time.sleep(wait_t)
+        else:
+            print(f"⚠️ خطأ غير متوقع: {e}")
+            break
 
 if not result:
-    print("❌ فشل الاتصال بجميع الموديلات المجانية المتاحة.")
+    print("❌ فشل الاتصال بجوجل تماماً.")
     exit(1)
 
-# 4. تنظيف وحفظ المخرجات
-print("\nRAW_RESPONSE:\n", result)
-
-# استخراج الـ JSON لو الموديل رجعه جوه علامات ```json
-if result and "```json" in result:
+# 5. معالجة وتصدير الملفات
+print("\n✅ تم الاتصال بنجاح!")
+if result.startswith("```json"):
     result = result.split("```json")[1].split("```")[0].strip()
-elif result and "```" in result:
+elif result.startswith("```"):
     result = result.split("```")[1].split("```")[0].strip()
 
 with open("ai_result.json", "w", encoding="utf-8") as f:
-    f.write(result if result else "{}")
+    f.write(result)
 
 try:
     data_json = json.loads(result)
 except Exception as e:
-    print("\nJSON ERROR:\n", result)
+    print("❌ خطأ في قراءة ملف JSON")
     raise e
 
-marketing_package = {
-    "product_code": product.get("product_code", ""),
-    "cover_image": data_json.get("cover_image", ""),
-    "best_images": data_json.get("best_images", []),
-    "facebook_post_sales": data_json.get("facebook_post_sales", ""),
-    "story_post": data_json.get("story_post", ""),
-    "reel_idea": data_json.get("reel_idea", ""),
-}
-
-# حفظ النصوص في ملفات منفصلة
 files_to_write = {
     "facebook_post_sales.txt": "facebook_post_sales",
     "story_post.txt": "story_post",
@@ -151,7 +117,6 @@ for filename, key in files_to_write.items():
     with open(filename, "w", encoding="utf-8") as f:
         f.write(data_json.get(key, ""))
 
-# نسخ أفضل 4 صور
 os.makedirs("selected_images", exist_ok=True)
 for image_path in data_json.get("best_images", [])[:4]:
     if os.path.exists(image_path):
@@ -160,5 +125,3 @@ for image_path in data_json.get("best_images", [])[:4]:
 cover_image = data_json.get("cover_image", "")
 if cover_image and os.path.exists(cover_image):
     shutil.copy(cover_image, "cover_image.jpg")
-
-print("\n✅ تم تجهيز محتوى الذكاء الاصطناعي بنجاح!")
