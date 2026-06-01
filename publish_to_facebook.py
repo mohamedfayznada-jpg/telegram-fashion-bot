@@ -9,38 +9,6 @@ if not PAGE_ID or not ACCESS_TOKEN:
     print("❌ بيانات الفيسبوك غير موجودة. سيتم تخطي النشر.")
     exit(0)
 
-def add_clean_watermark(image_path, logo_path="logo.png"):
-    try:
-        base_image = Image.open(image_path).convert("RGBA")
-        
-        if not os.path.exists(logo_path):
-            print("⚠️ ملف اللوجو غير موجود، سيتم النشر بدون لوجو إضافي.")
-            return image_path
-            
-        logo = Image.open(logo_path).convert("RGBA")
-        
-        # تصغير اللوجو ليكون 15% من العرض
-        logo_width = int(base_image.width * 0.15)
-        w_percent = (logo_width / float(logo.width))
-        logo_height = int((float(logo.height) * float(w_percent)))
-        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
-        
-        # وضع اللوجو في الزاوية اليمنى السفلية
-        margin = 30
-        x = base_image.width - logo_width - margin
-        y = base_image.height - logo_height - margin
-        
-        # لصق اللوجو مباشرة
-        transparent = Image.new('RGBA', base_image.size, (0,0,0,0))
-        transparent.paste(logo, (x, y), mask=logo)
-        final_image = Image.alpha_composite(base_image, transparent)
-        
-        output_path = "watermarked_collage.jpg"
-        final_image.convert("RGB").save(output_path, "JPEG", quality=95)
-        return output_path
-    except Exception as e:
-        print(f"❌ خطأ في إضافة اللوجو: {e}")
-        return image_path
 
 def post_story(image_path):
     if not os.path.exists(image_path):
