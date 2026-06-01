@@ -14,35 +14,53 @@ if not PAGE_ID or not ACCESS_TOKEN:
     exit(0)
 
 # ==============================
-# دالة نشر الستوري (الضربة القاضية لخطأ Code 1)
+# دالة نشر الستوري (الضربة القاضية: نشر فيديو الستوري لتخطي باج الصور)
 # ==============================
-def post_story(image_path):
-    if not os.path.exists(image_path): 
+def post_video_story(video_path):
+    if not os.path.exists(video_path): 
         return
-    print("🚀 جاري نشر الستوري...")
+    print("🚀 جاري نشر الستوري (فيديو متحرك لتخطي باج فيسبوك)...")
+    file_size = str(os.path.getsize(video_path))
+    start_url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/video_stories"
     
-    # السر هنا: وضع التوكن في الرابط نفسه لتجنب خطأ المصادقة مع رفع الملفات
-    url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photo_stories?access_token={ACCESS_TOKEN}"
-    
-    for attempt in range(3):
-        try:
-            with open(image_path, "rb") as img:
-                # نرسل الصورة فقط، بدون إرفاق أي داتا أخرى
-                files = {"source": ("story.jpg", img, "image/jpeg")}
-                response = requests.post(url, files=files, timeout=30)
-                res_data = response.json()
-                
-                if "id" in res_data:
-                    print("✅ تم نشر الستوري بنجاح!")
-                    return
-                else:
-                    print(f"⚠️ محاولة {attempt + 1} فشلت: {res_data}")
-                    time.sleep(5)
-        except Exception as e:
-            print(f"⚠️ خطأ أثناء الاتصال: {e}")
-            time.sleep(5)
+    try:
+        # 1. Start Phase
+        start_res = requests.post(start_url, data={'upload_phase': 'start', 'access_token': ACCESS_TOKEN, 'file_size': file_size}).json()
+        if 'video_id' not in start_res: 
+            print(f"⚠️ خطأ في بدء رفع الستوري: {start_res}")
+            return
             
-    print("❌ فشل نشر الستوري بعد جميع المحاولات.")
+        video_id = start_res['video_id']
+        
+        # 2. Upload Phase
+        upload_url = f"https://rupload.facebook.com/video-upload/v19.0/{video_id}"
+        headers = {
+            'Authorization': f'OAuth {ACCESS_TOKEN}', 
+            'offset': '0', 
+            'file_size': file_size, 
+            'X-Entity-Length': file_size, 
+            'Content-Type': 'application/octet-stream'
+        }
+        
+        with open(video_path, 'rb') as f:
+            upload_res = requests.post(upload_url, headers=headers, data=f.read())
+            
+        if upload_res.status_code == 200:
+            # 3. Finish Phase
+            finish_res = requests.post(start_url, data={
+                'upload_phase': 'finish', 
+                'video_id': video_id, 
+                'access_token': ACCESS_TOKEN
+            }).json()
+            
+            if finish_res.get('success'):
+                print("✅ تم نشر الستوري بنجاح!")
+            else:
+                print(f"⚠️ خطأ في إنهاء الستوري: {finish_res}")
+        else:
+            print(f"⚠️ خطأ في رفع ملف الستوري: {upload_res.text}")
+    except Exception as e:
+        print(f"⚠️ فشل نشر الستوري: {e}")
 
 # ==============================
 # دالة نشر الريلز 
@@ -100,13 +118,11 @@ try:
 except: 
     caption = "كوليكشن جديد متاح الآن."
 
-# وضع التوكن في الرابط هنا أيضاً للبوست الأساسي لزيادة الأمان والموثوقية
 url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos?access_token={ACCESS_TOKEN}"
 
 try:
     print("🚀 جاري نشر البوست الأساسي...")
     with open("marketing_collage.jpg", "rb") as img:
-        # إرسال الصورة والوصف فقط
         response = requests.post(url, data={"caption": caption}, files={"source": ("post.jpg", img, "image/jpeg")})
         
     res_data = response.json()
@@ -127,8 +143,13 @@ try:
                 print("💾 تم حفظ رقم المنتج في الذاكرة بنجاح.")
 
         time.sleep(5)
-        post_story("story_ready.jpg")
         
+        # نرفع فيديو الريلز نفسه كـ "فيديو ستوري" عشان نتخطى باج الصورة الثابتة
+        post_video_story("reel_video.mp4")
+        
+        time.sleep(5)
+        
+        # نشر الريلز الأساسي
         reel_caption = caption + "\n\n#ريلز #أزياء #موضة #Fastyle"
         upload_reel("reel_video.mp4", reel_caption)
     else:
