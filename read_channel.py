@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import random
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
@@ -8,108 +9,145 @@ API_ID = int(os.environ["API_ID"])
 API_HASH = os.environ["API_HASH"]
 SESSION_STRING = os.environ.get("TELEGRAM_SESSION", "").strip()
 
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+client = TelegramClient(
+    StringSession(SESSION_STRING), 
+    API_ID, 
+    API_HASH, 
+    device_model="Desktop", 
+    system_version="Windows 10", 
+    app_version="1.0"
+)
 
-# كلمات الإدمن اللي البوت هيتجاهلها تماماً
-IGNORE_WORDS = ["السلام عليكم", "العمولات", "اوردر", "يمنشن", "قاهره", "جيزه", "عيد", "اجازة", "استئناف العمل", "شحن", "كل سنة"]
+# كلمات الإدمن/الرسائل العامة للتجاهل
+IGNORE_WORDS = [
+    "السلام عليكم", "العمولات", "اوردر", "يمنشن", "قاهره", 
+    "جيزه", "عيد", "اجازة", "استئناف العمل", "شحن", "مصاريف شحن"
+]
 
 def is_ignored_msg(text):
-    if not text: return True  # لو مفيش نص نعتبرها رسالة تابعة للألبوم ونتخطاها مؤقتاً
+    if not text: return True
+    text = text.lower()
     for word in IGNORE_WORDS:
-        if word.lower() in text.lower(): return True
+        if word.lower() in text: return True
     return False
 
 def extract_price(text):
+    # تحويل الأرقام العربية إلى إنجليزية
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
-    patterns = [r"السعر\s*[:\-]?\s*(\d+)", r"(\d+)\s*ج\b", r"(\d+)\s*جنيه"]
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match: return match.group(1)
     
-    # صيد آخر رقم مكون من 3 أو 4 خانات (سعر التاجر)
-    numbers = re.findall(r'\b\d{3,4}\b', text)
-    return numbers[-1] if numbers else "غير محدد"
+    # البحث عن كلمة السعر والتقاط أول رقم بعدها مباشرة (يحل مشكلة "290 فقط" و "400جينه")
+    match = re.search(r"السعر.*?(\d+)", text, re.IGNORECASE)
+    if match: 
+        return match.group(1)
+    return "غير محدد"
 
 def extract_product_code(text):
-    import random
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
-    for line in reversed(text.splitlines()):
-        match = re.search(r"(\d{3,})", line.strip())
-        if match: return f"FS{match.group(1)}"
+    
+    # محاولة إيجاد كلمة "كود"
+    match = re.search(r"كود.*?(\d+)", text, re.IGNORECASE)
+    if match: 
+        return f"FS{match.group(1)}"
+        
+    # إذا لم يكتب "كود"، نأخذ الأرقام الموجودة أسفل البوست (مثل 1808 أو 2211)
+    numbers = re.findall(r'\b\d{3,5}\b', text)
+    if numbers:
+        price = extract_price(text)
+        # نأخذ آخر رقم بشرط ألا يكون هو نفسه السعر
+        for num in reversed(numbers):
+            if num != price: 
+                return f"FS{num}"
+                
     return f"FS{random.randint(1000, 9999)}"
 
 async def main():
     await client.start()
-    
-    # ⚠️ تنبيه: تأكد من اسم القناة هنا ⚠️
-    channel = await client.get_entity("yasminstoriii") 
-    
-    # قراءة أحدث 50 رسالة فقط من الأحدث للأقدم
-    messages = await client.get_messages(channel, limit=50) 
+    channel = await client.get_entity("yasminstoriii")
+    # قراءة آخر 300 رسالة لضمان تغطية التراكمات
+    messages = await client.get_messages(channel, limit=300)
 
     try:
-        with open("posted_ids.json", "r") as f: posted_ids = json.load(f)
-    except: posted_ids = []
+        with open("posted_ids.json", "r") as f: 
+            posted_ids = json.load(f)
+    except: 
+        posted_ids = []
 
-    product_msg = None
-    
-    # 1. البحث عن أحدث منتج (أول رسالة تقابلنا فيها نص وصورة ومش في الذاكرة)
+    # قلب ترتيب الرسائل (من الأقدم للأحدث) لرفع الطابور بالترتيب الصحيح
+    messages.reverse()
+
+    target_text_msg = None
+    target_images = []
+    temp_image_buffer = []
+
     for msg in messages:
-        if msg.id in posted_ids: 
-            continue
+        # 1. تجميع الصور في السلة المؤقتة
+        if msg.photo:
+            temp_image_buffer.append(msg)
             
-        text = (msg.message or "").strip()
+        text = (msg.text or "").strip()
         
-        if msg.media and not is_ignored_msg(text):
-            product_msg = msg
-            break
-        else:
-            # لو رسالة إدمن أو صورة بدون نص، نسجلها إنها "اتقرأت" عشان ننساها
+        # 2. عندما نجد رسالة نصية
+        if text:
+            if is_ignored_msg(text):
+                continue # رسالة إدمن: نتجاهلها ونكمل تجميع الصور للمنتج الفعلي
+            
+            # إذا لم يتم نشر هذا المنتج من قبل
             if msg.id not in posted_ids:
-                posted_ids.append(msg.id)
+                target_text_msg = msg
+                # نأخذ كل الصور التي تم تجميعها قبل هذا النص
+                target_images = temp_image_buffer.copy()
+                break # وجدنا الهدف! نوقف البحث
+            else:
+                # هذا المنتج نُشر مسبقاً، نفرغ السلة لنبدأ تجميع صور المنتج الذي يليه
+                temp_image_buffer = []
 
-    if not product_msg:
-        print("✅ لا توجد منتجات جديدة (تم معالجة كل الأحدث).")
-        with open("skip_flag.txt", "w") as f: f.write("skip")
-        with open("posted_ids.json", "w") as f: json.dump(posted_ids[-1000:], f)
+    # لو لفينا على كل الرسائل ومفيش جديد
+    if not target_text_msg:
+        print("✅ جميع المنتجات تم نشرها، لا يوجد جديد في الطابور.")
+        with open("skip_flag.txt", "w", encoding="utf-8") as f: 
+            f.write("skip")
         return
 
-    print(f"🎯 تم صيد أحدث منتج نزل على القناة! ID: {product_msg.id}")
-
-    # 2. تجميع كل صور الألبوم بناءً على الـ Group ID
-    downloaded = []
+    # تنزيل الصور المرتبطة بالمنتج
     os.makedirs("downloads", exist_ok=True)
+    downloaded = []
+    for img_msg in target_images:
+        filename = await client.download_media(img_msg, file=f"downloads/{img_msg.id}")
+        if filename: 
+            downloaded.append(filename)
+
+    # حماية: لو النص ملوش صور، نرفعه في الذاكرة عشان ميعلقش الطابور ونتخطاه
+    if not downloaded:
+        print("⚠️ تم العثور على وصف بدون صور، سيتم تخطيه لتجنب الأخطاء.")
+        posted_ids.append(target_text_msg.id)
+        with open("posted_ids.json", "w") as f: json.dump(posted_ids[-1000:], f)
+        with open("skip_flag.txt", "w") as f: f.write("skip")
+        return
+
+    # استخراج البيانات
+    price = extract_price(target_text_msg.text)
+    code = extract_product_code(target_text_msg.text)
     
-    if product_msg.grouped_id:
-        # لو ده ألبوم، هنجيب كل صوره حتى لو معلهاش كلام
-        for m in messages:
-            if m.grouped_id == product_msg.grouped_id:
-                if m.id not in posted_ids: posted_ids.append(m.id)
-                if m.media:
-                    file = await client.download_media(m, file=f"downloads/{m.id}")
-                    if file: downloaded.append(file)
-    else:
-        # لو صورة واحدة بس
-        posted_ids.append(product_msg.id)
-        file = await client.download_media(product_msg, file=f"downloads/{product_msg.id}")
-        if file: downloaded.append(file)
+    # مسح السطر الذي يحتوي على السعر من الوصف
+    desc = re.sub(r"السعر.*", "", target_text_msg.text, flags=re.IGNORECASE).strip()
 
-    # حفظ الذاكرة
-    with open("posted_ids.json", "w") as f: json.dump(posted_ids[-1000:], f)
-
-    # حفظ بيانات المنتج النهائية
     product_data = {
-        "product_id": product_msg.id,
-        "product_code": extract_product_code(product_msg.message),
-        "price": extract_price(product_msg.message),
-        "description": re.sub(r"السعر.*", "", product_msg.message, flags=re.IGNORECASE).strip(),
+        "product_id": target_text_msg.id,
+        "product_code": code,
+        "price": price,
+        "description": desc,
         "images": downloaded
     }
     
     with open("product.json", "w", encoding="utf-8") as f: 
         json.dump(product_data, f, ensure_ascii=False, indent=4)
-        
-    print(f"✅ تم حفظ أحدث منتج بنجاح. تم تجميع {len(downloaded)} صور.")
+    
+    # تحديث الذاكرة فوراً لضمان عدم التكرار
+    posted_ids.append(target_text_msg.id)
+    with open("posted_ids.json", "w") as f: 
+        json.dump(posted_ids[-1000:], f)
+
+    print(f"🎯 تم صيد المنتج بنجاح! الكود: {code} | السعر: {price} | عدد الصور: {len(downloaded)}")
 
 with client:
     client.loop.run_until_complete(main())
