@@ -22,8 +22,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install telethon pillow requests opencv-python-headless numpy arabic-reshaper python-bidi
-
+          pip install telethon pillow requests opencv-python-headless numpy arabic-reshaper python-bidi gTTS
       - name: 1. Scrape Telegram (Queue System)
         env:
           API_ID: ${{ secrets.API_ID }}
