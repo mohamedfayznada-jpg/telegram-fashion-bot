@@ -146,18 +146,20 @@ for idx, img_path in enumerate(v_unique):
     except: pass
 video.release()
 
-# المعالجة الصارمة لضمان خروج ملف الفيديو (Fixing the Silent Bug)
-print("🎙️ جاري توليد التعليق الصوتي...")
+# المعالجة الصارمة لضمان خروج ملف الفيديو (الصوت البشري الطبيعي)
+print("🎙️ جاري توليد التعليق الصوتي بالذكاء الاصطناعي (صوت مصري طبيعي)...")
 video_created = False
 try:
     script = ai_data.get("voiceover_script", "كوليكشن جديد متاح الآن.")
-    gTTS(text=script, lang='ar', slow=False).save("voice.mp3")
     
-    # استخدام subprocess لاصطياد الأخطاء بقوة بدلاً من os.system
+    # استخدام محرك مايكروسوفت (صوت سلمى المصري الطبيعي) بدلاً من روبوت جوجل
+    subprocess.run(['edge-tts', '--voice', 'ar-EG-SalmaNeural', '--text', script, '--write-media', 'voice.mp3'], check=True)
+    
+    # استخدام subprocess لاصطياد الأخطاء بقوة
     result = subprocess.run(["ffmpeg", "-i", "reel_video_temp.mp4", "-i", "voice.mp3", "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-shortest", "reel_video.mp4", "-y"], capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("✅ تم دمج الصوت بنجاح!")
+        print("✅ تم دمج الصوت المصري الطبيعي بنجاح!")
         video_created = True
     else:
         print(f"⚠️ خطأ FFMPEG داخلي: {result.stderr}")
