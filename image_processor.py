@@ -5,12 +5,12 @@ import hashlib
 import requests
 import random
 import shutil
+import subprocess
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
 from gtts import gTTS
-import subprocess
 
 if os.path.exists("skip_flag.txt"): exit(0)
 
@@ -64,7 +64,6 @@ elif len(imgs) == 4:
     positions = [(0, 0), (600, 0), (0, 600), (600, 600)]
     for img, pos in zip(imgs, positions): canvas.paste(img.resize((600, 600)), pos)
 
-# دمج اللوجو بشكل بارز
 draw = ImageDraw.Draw(canvas, "RGBA")
 footer_height = 220 
 draw.rectangle([0, 1200 - footer_height, 1200, 1200], fill=(15, 23, 42, 240))
@@ -153,20 +152,25 @@ video_created = False
 try:
     script = ai_data.get("voiceover_script", "كوليكشن جديد متاح الآن.")
     gTTS(text=script, lang='ar', slow=False).save("voice.mp3")
-    # استخدام subprocess لاصطياد الأخطاء بدلاً من os.system
-    result = subprocess.run(["ffmpeg", "-i", "reel_video_temp.mp4", "-i", "voice.mp3", "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-shortest", "reel_video.mp4", "-y"], capture_output=True)
+    
+    # استخدام subprocess لاصطياد الأخطاء بقوة بدلاً من os.system
+    result = subprocess.run(["ffmpeg", "-i", "reel_video_temp.mp4", "-i", "voice.mp3", "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-shortest", "reel_video.mp4", "-y"], capture_output=True, text=True)
+    
     if result.returncode == 0:
         print("✅ تم دمج الصوت بنجاح!")
         video_created = True
     else:
-        raise Exception("FFMPEG Failed")
+        print(f"⚠️ خطأ FFMPEG داخلي: {result.stderr}")
+        raise Exception("FFMPEG Process Failed")
 except Exception as e:
     print(f"⚠️ فشل الصوت، سيتم توفير الفيديو الصامت: {e}")
 
+# خطة الطوارئ الحقيقية: لو فشل الصوت، لازم نضمن إن الفيديو يتنسخ!
 if not video_created and os.path.exists("reel_video_temp.mp4"):
     shutil.copy("reel_video_temp.mp4", "reel_video.mp4")
+    print("✅ تم حفظ الفيديو الصامت لاستكمال عملية النشر.")
 
 if os.path.exists("reel_video.mp4"):
-    print("✅ تم تأكيد إنشاء ملف الريلز النهائي بنجاح.")
+    print("✅ تم تأكيد وجود ملف الريلز النهائي جاهز للنشر.")
 else:
     print("❌ كارثة: لم يتم إنشاء ملف الفيديو بأي شكل!")
