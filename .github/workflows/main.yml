@@ -14,15 +14,21 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies (FFMPEG)
+        run: brew install ffmpeg
+
+      - name: Install Python Dependencies
         run: |
           pip install telethon pillow requests opencv-python-headless numpy arabic-reshaper python-bidi gTTS
+
       - name: 1. Scrape Telegram (Queue System)
         env:
           API_ID: ${{ secrets.API_ID }}
@@ -50,10 +56,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python send_to_telegram.py
 
-      - name: 6. Commit Database (Save Memory)
+      - name: 6. Commit Database (Save Memory & Dashboard)
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add posted_ids.json
-          git commit -m "Auto-update posted products DB" || echo "No new products to save"
+          git pull origin main --rebase
+          git add posted_ids.json dashboard.csv || true
+          git commit -m "Auto-update DB and Dashboard" || echo "No changes to commit"
           git push
