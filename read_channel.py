@@ -32,38 +32,27 @@ def is_ignored_msg(text):
 
 def extract_price(text):
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
-    
-    # فلتر خارق: يبحث عن كلمة السعر، ثم يتخطى أي إيموجي أو مسافات أو أسطر، ويجلب الرقم
     match = re.search(r"(السعر|سعر)[\s\S]*?(\d{3,4})", text, re.IGNORECASE)
-    if match: 
-        return match.group(2)
-        
-    # خطة بديلة لو لم يكتب كلمة السعر أصلاً
+    if match: return match.group(2)
     numbers = re.findall(r'\b\d{3,4}\b', text)
     return numbers[-1] if numbers else "غير محدد"
 
 def extract_product_code(text):
     text = text.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789'))
-    
     match = re.search(r"كود[\s\S]*?(\d+)", text, re.IGNORECASE)
-    if match: 
-        return f"FS{match.group(1)}"
-        
+    if match: return f"FS{match.group(1)}"
     numbers = re.findall(r'\b\d{3,5}\b', text)
     if numbers:
         price = extract_price(text)
         for num in reversed(numbers):
-            if num != price: 
-                return f"FS{num}"
-                
+            if num != price: return f"FS{num}"
     return f"FS{random.randint(1000, 9999)}"
 
 async def main():
     await client.start()
     channel = await client.get_entity("yasminstoriii")
-    
-    # قللنا البحث لـ 40 رسالة فقط للتركيز على "أحدث المنتجات" وعدم جلب القديم
-    messages = await client.get_messages(channel, limit=40)
+    # البحث في آخر 200 رسالة لحصر الطابور بالكامل
+    messages = await client.get_messages(channel, limit=200)
 
     try:
         with open("posted_ids.json", "r") as f: 
@@ -71,11 +60,15 @@ async def main():
     except: 
         posted_ids = []
 
-    messages.reverse() # من الأقدم للأحدث داخل النطاق القصير
+    # من الأقدم للأحدث
+    messages.reverse()
 
     target_text_msg = None
     target_images = []
     temp_image_buffer = []
+    
+    # عداد الطابور
+    pending_count = 0
 
     for msg in messages:
         if msg.photo:
@@ -88,14 +81,18 @@ async def main():
                 continue
             
             if msg.id not in posted_ids:
-                target_text_msg = msg
-                target_images = temp_image_buffer.copy()
-                break
-            else:
-                temp_image_buffer = []
+                # لو ده أول بوست نلاقيه، ده اللي هينتشر دلوقتي
+                if not target_text_msg:
+                    target_text_msg = msg
+                    target_images = temp_image_buffer.copy()
+                else:
+                    # لو لقينا بوست تاني مش في الذاكرة، يبقى ده في الانتظار (الطابور)
+                    pending_count += 1
+                    
+            temp_image_buffer = []
 
     if not target_text_msg:
-        print("✅ جميع المنتجات الحديثة تم نشرها، لا يوجد جديد.")
+        print("✅ جميع المنتجات تم نشرها، لا يوجد جديد.")
         with open("skip_flag.txt", "w", encoding="utf-8") as f: 
             f.write("skip")
         return
@@ -123,17 +120,15 @@ async def main():
         "product_code": code,
         "price": price,
         "description": desc,
-        "images": downloaded
+        "images": downloaded,
+        "pending_count": pending_count  # تخزين العداد هنا
     }
     
     with open("product.json", "w", encoding="utf-8") as f: 
         json.dump(product_data, f, ensure_ascii=False, indent=4)
-    
-    posted_ids.append(target_text_msg.id)
-    with open("posted_ids.json", "w") as f: 
-        json.dump(posted_ids[-1000:], f)
 
-    print(f"🎯 تم صيد المنتج بنجاح! الكود: {code} | السعر: {price}")
+    # لاحظ: لم نقم بإضافة الـ ID هنا، سيقوم ملف النشر بإضافته عند النجاح لضمان الأمان 100%
+    print(f"🎯 تم صيد المنتج بنجاح! الكود: {code} | السعر: {price} | الطابور: {pending_count}")
 
 with client:
     client.loop.run_until_complete(main())
