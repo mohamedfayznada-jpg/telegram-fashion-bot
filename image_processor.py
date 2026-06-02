@@ -64,7 +64,28 @@ elif len(imgs) == 4:
     positions = [(0, 0), (600, 0), (0, 600), (600, 600)]
     for img, pos in zip(imgs, positions): canvas.paste(img.resize((600, 600)), pos)
 
+# ==========================================
+# إضافة ختم الندرة (Scarcity Badge) أعلى اليمين
+# ==========================================
 draw = ImageDraw.Draw(canvas, "RGBA")
+if font_ready:
+    badges = ["🔥 أحدث كوليكشن", "⚡ عرض حصري", "🏃‍♀️ الحق قبل النفاذ", "⭐ الأكثر مبيعاً"]
+    badge_text = random.choice(badges)
+    bidi_text = get_display(arabic_reshaper.reshape(badge_text))
+    b_font = ImageFont.truetype(font_path, 45)
+    
+    # حساب حجم الختم
+    left, top, right, bottom = b_font.getbbox(bidi_text)
+    tw, th = right - left, bottom - top
+    bx, by = 1150 - tw - 40, 40 # موضع أعلى اليمين
+    
+    # رسم خلفية الختم مع زوايا دائرية
+    draw.rounded_rectangle([bx - 20, by - 15, bx + tw + 20, by + th + 15], radius=15, fill=(220, 38, 38, 230)) # لون أحمر جذاب
+    draw.text((bx, by - 10), bidi_text, font=b_font, fill=(255, 255, 255, 255))
+
+# ==========================================
+# دمج اللوجو كختم رسمي أسفل اليسار
+# ==========================================
 footer_height = 220 
 draw.rectangle([0, 1200 - footer_height, 1200, 1200], fill=(15, 23, 42, 240))
 logo_path = "logo.png"
@@ -89,7 +110,9 @@ story_bg = story_canvas.resize((1080, 1920)).filter(ImageFilter.GaussianBlur(30)
 story_bg.paste(story_canvas, (0, (1920 - 1080) // 2))
 story_bg.convert("RGB").save("story_ready.jpg", quality=80)
 
-# إنشاء فيديو الريلز الحركي
+# ==========================================
+# إنشاء فيديو الريلز الحركي 
+# ==========================================
 print("🎥 جاري إنشاء فيديو الريلز الحركي...")
 try:
     with open("ai_result.json", "r", encoding="utf-8") as f: ai_data = json.load(f)
@@ -146,33 +169,19 @@ for idx, img_path in enumerate(v_unique):
     except: pass
 video.release()
 
-# المعالجة الصارمة لضمان خروج ملف الفيديو (الصوت البشري الطبيعي)
-print("🎙️ جاري توليد التعليق الصوتي بالذكاء الاصطناعي (صوت مصري طبيعي)...")
+print("🎙️ جاري توليد التعليق الصوتي بالذكاء الاصطناعي...")
 video_created = False
 try:
     script = ai_data.get("voiceover_script", "كوليكشن جديد متاح الآن.")
-    
-    # استخدام محرك مايكروسوفت (صوت سلمى المصري الطبيعي) بدلاً من روبوت جوجل
     subprocess.run(['edge-tts', '--voice', 'ar-EG-SalmaNeural', '--text', script, '--write-media', 'voice.mp3'], check=True)
-    
-    # استخدام subprocess لاصطياد الأخطاء بقوة
     result = subprocess.run(["ffmpeg", "-i", "reel_video_temp.mp4", "-i", "voice.mp3", "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-shortest", "reel_video.mp4", "-y"], capture_output=True, text=True)
-    
     if result.returncode == 0:
-        print("✅ تم دمج الصوت المصري الطبيعي بنجاح!")
         video_created = True
-    else:
-        print(f"⚠️ خطأ FFMPEG داخلي: {result.stderr}")
-        raise Exception("FFMPEG Process Failed")
 except Exception as e:
-    print(f"⚠️ فشل الصوت، سيتم توفير الفيديو الصامت: {e}")
+    print(f"⚠️ فشل الصوت: {e}")
 
-# خطة الطوارئ الحقيقية: لو فشل الصوت، لازم نضمن إن الفيديو يتنسخ!
 if not video_created and os.path.exists("reel_video_temp.mp4"):
     shutil.copy("reel_video_temp.mp4", "reel_video.mp4")
-    print("✅ تم حفظ الفيديو الصامت لاستكمال عملية النشر.")
 
 if os.path.exists("reel_video.mp4"):
-    print("✅ تم تأكيد وجود ملف الريلز النهائي جاهز للنشر.")
-else:
-    print("❌ كارثة: لم يتم إنشاء ملف الفيديو بأي شكل!")
+    print("✅ تم إنشاء ملف الريلز النهائي بنجاح.")
