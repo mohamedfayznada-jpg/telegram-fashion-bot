@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   run-pipeline:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest # نقلنا لسيرفرات لينكس السريعة والمستقرة
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -23,7 +23,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install System Dependencies (FFMPEG)
-        run: brew install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       - name: Install Python Dependencies
         run: |
@@ -58,9 +60,11 @@ jobs:
 
       - name: 6. Commit Database (Save Memory & Dashboard)
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git pull origin main --rebase
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          # أمر صارم لدمج أي تغييرات قبل الرفع لمنع رفض السيرفر
+          git pull origin main --rebase --autostash || true
           git add posted_ids.json dashboard.csv || true
           git commit -m "Auto-update DB and Dashboard" || echo "No changes to commit"
-          git push
+          # رفع إجباري وآمن لتأكيد حفظ الذاكرة
+          git push origin HEAD:main
