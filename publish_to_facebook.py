@@ -9,73 +9,108 @@ if os.path.exists("skip_flag.txt"): exit(0)
 
 PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID")
 ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN")
+IG_ACCOUNT_ID = os.environ.get("INSTAGRAM_ACCOUNT_ID") # سر جديد لإنستجرام
 
 if not PAGE_ID or not ACCESS_TOKEN: exit(0)
 
-def post_video_story(video_path):
-    if not os.path.exists(video_path): 
-        print("❌ فيديو الستوري غير موجود!")
-        return
-    print("🚀 جاري نشر الستوري...")
+# ==============================
+# Micro-service: رفع الملفات لسيرفر مؤقت لتقديمها لإنستجرام
+# ==============================
+def get_public_url(local_path):
+    print(f"🌐 جاري توليد رابط عام للملف: {local_path}...")
+    try:
+        with open(local_path, 'rb') as f:
+            res = requests.post("https://catbox.moe/user/api.php", data={"reqtype": "fileupload"}, files={"fileToUpload": f})
+            if res.status_code == 200:
+                return res.text.strip()
+    except Exception as e:
+        print(f"⚠️ فشل الاستضافة المؤقتة: {e}")
+    return None
+
+# ==============================
+# دوال فيسبوك (كما هي)
+# ==============================
+def post_fb_video_story(video_path):
+    if not os.path.exists(video_path): return
     file_size = str(os.path.getsize(video_path))
     start_url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/video_stories"
     try:
         start_res = requests.post(start_url, data={'upload_phase': 'start', 'access_token': ACCESS_TOKEN, 'file_size': file_size}).json()
         if 'video_id' not in start_res: return
-        video_id = start_res['video_id']
-        upload_url = f"https://rupload.facebook.com/video-upload/v19.0/{video_id}"
-        headers = {'Authorization': f'OAuth {ACCESS_TOKEN}', 'offset': '0', 'file_size': file_size, 'X-Entity-Length': file_size, 'Content-Type': 'application/octet-stream'}
-        with open(video_path, 'rb') as f:
-            upload_res = requests.post(upload_url, headers=headers, data=f.read())
-        if upload_res.status_code == 200:
-            requests.post(start_url, data={'upload_phase': 'finish', 'video_id': video_id, 'access_token': ACCESS_TOKEN})
-            print("✅ تم نشر الستوري بنجاح.")
-    except Exception as e: print(f"⚠️ فشل الستوري: {e}")
+        vid_id = start_res['video_id']
+        requests.post(f"https://rupload.facebook.com/video-upload/v19.0/{vid_id}", headers={'Authorization': f'OAuth {ACCESS_TOKEN}', 'offset': '0', 'file_size': file_size, 'X-Entity-Length': file_size, 'Content-Type': 'application/octet-stream'}, data=open(video_path, 'rb').read())
+        requests.post(start_url, data={'upload_phase': 'finish', 'video_id': vid_id, 'access_token': ACCESS_TOKEN})
+        print("✅ تم نشر ستوري فيسبوك.")
+    except: pass
 
-def upload_reel(video_path, description):
-    if not os.path.exists(video_path): 
-        print("❌ فيديو الريلز غير موجود!")
-        return
-    print("🚀 جاري رفع ونشر الريلز...")
+def upload_fb_reel(video_path, description):
+    if not os.path.exists(video_path): return
     file_size = str(os.path.getsize(video_path))
     start_url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/video_reels"
     try:
         start_res = requests.post(start_url, data={'upload_phase': 'start', 'access_token': ACCESS_TOKEN, 'file_size': file_size}).json()
         if 'video_id' not in start_res: return
-        video_id = start_res['video_id']
-        upload_url = f"https://rupload.facebook.com/video-upload/v19.0/{video_id}"
-        headers = {'Authorization': f'OAuth {ACCESS_TOKEN}', 'offset': '0', 'file_size': file_size, 'X-Entity-Length': file_size, 'Content-Type': 'application/octet-stream'}
-        with open(video_path, 'rb') as f:
-            upload_res = requests.post(upload_url, headers=headers, data=f.read())
-        if upload_res.status_code == 200:
-            requests.post(start_url, data={'upload_phase': 'finish', 'video_id': video_id, 'video_state': 'PUBLISHED', 'description': description, 'access_token': ACCESS_TOKEN})
-            print("🎉 تم نشر فيديو الريلز بنجاح.")
-    except Exception as e: print(f"⚠️ فشل الريلز: {e}")
+        vid_id = start_res['video_id']
+        requests.post(f"https://rupload.facebook.com/video-upload/v19.0/{vid_id}", headers={'Authorization': f'OAuth {ACCESS_TOKEN}', 'offset': '0', 'file_size': file_size, 'X-Entity-Length': file_size, 'Content-Type': 'application/octet-stream'}, data=open(video_path, 'rb').read())
+        requests.post(start_url, data={'upload_phase': 'finish', 'video_id': vid_id, 'video_state': 'PUBLISHED', 'description': description, 'access_token': ACCESS_TOKEN})
+        print("🎉 تم نشر ريلز فيسبوك.")
+    except: pass
 
+# ==============================
+# دوال إنستجرام الجديدة
+# ==============================
+def post_to_instagram(image_path, video_path, caption):
+    if not IG_ACCOUNT_ID:
+        print("⚠️ تم تخطي النشر على إنستجرام (IG_ACCOUNT_ID غير متوفر).")
+        return
+
+    print("🚀 جاري النشر على إنستجرام...")
+    
+    # 1. نشر صورة الكولاچ (Post)
+    if os.path.exists(image_path):
+        img_url = get_public_url(image_path)
+        if img_url:
+            # إنشاء Container
+            container_res = requests.post(f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media", data={"image_url": img_url, "caption": caption, "access_token": ACCESS_TOKEN}).json()
+            if "id" in container_res:
+                # النشر الفعلي
+                requests.post(f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media_publish", data={"creation_id": container_res["id"], "access_token": ACCESS_TOKEN})
+                print("✅ تم نشر بوست إنستجرام.")
+
+    # 2. نشر الريلز (Reels)
+    if os.path.exists(video_path):
+        vid_url = get_public_url(video_path)
+        if vid_url:
+            reel_container = requests.post(f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media", data={"media_type": "REELS", "video_url": vid_url, "caption": caption + "\n\n#موضة #أزياء #ريلز", "access_token": ACCESS_TOKEN}).json()
+            if "id" in reel_container:
+                # إنستجرام بيحتاج ثواني لمعالجة الفيديو قبل النشر
+                time.sleep(15) 
+                requests.post(f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media_publish", data={"creation_id": reel_container["id"], "access_token": ACCESS_TOKEN})
+                print("🎉 تم نشر ريلز إنستجرام.")
+
+# ==============================
+# التنفيذ الرئيسي للوكالة الآلية
+# ==============================
 try:
     with open("product.json", "r", encoding="utf-8") as f: product_data = json.load(f)
-    product_id = product_data.get("product_id")
-    code = product_data.get("product_code", "")
-    price = product_data.get("price", "")
+    product_id, code, price = product_data.get("product_id"), product_data.get("product_code", ""), product_data.get("price", "")
 except: product_id = None; code = ""; price = ""
 
 try:
     with open("facebook_post_sales.txt", "r", encoding="utf-8") as f: caption = f.read().strip()
-except: caption = "كوليكشن جديد متاح الآن."
+except: caption = "كوليكشن جديد."
 
 url = f"https://graph.facebook.com/v19.0/{PAGE_ID}/photos?access_token={ACCESS_TOKEN}"
 
 try:
-    print("🚀 جاري نشر البوست الأساسي...")
-    with open("marketing_collage.jpg", "rb") as img:
-        response = requests.post(url, data={"caption": caption}, files={"source": ("post.jpg", img, "image/jpeg")})
+    print("🚀 جاري نشر البوست الأساسي (فيسبوك)...")
+    res_data = requests.post(url, data={"caption": caption}, files={"source": open("marketing_collage.jpg", "rb")}).json()
         
-    res_data = response.json()
     if "id" in res_data:
-        print("✅ تم نشر البوست الأساسي بنجاح!")
+        print("✅ تم نشر بوست فيسبوك!")
         post_link = f"https://facebook.com/{res_data['id']}"
         
-        # التحديث الإجباري للذاكرة لمنع الـ Loop
+        # تحديث الذاكرة
         if product_id:
             try:
                 with open("posted_ids.json", "r") as f: posted_ids = json.load(f)
@@ -83,7 +118,6 @@ try:
             if product_id not in posted_ids:
                 posted_ids.append(product_id)
                 with open("posted_ids.json", "w") as f: json.dump(posted_ids[-1000:], f)
-                print("💾 تم تأمين حفظ الـ ID في الذاكرة بنجاح.")
 
         # تحديث لوحة التحكم
         dashboard_file = 'dashboard.csv'
@@ -94,12 +128,16 @@ try:
             writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M"), code, price, post_link])
 
         time.sleep(5)
-        # سيتم النشر فقط إذا تم إنشاء الفيديو بنجاح
+        
+        # نشر باقي محتوى فيسبوك
         if os.path.exists("reel_video.mp4"):
-            post_video_story("reel_video.mp4")
+            post_fb_video_story("reel_video.mp4")
             time.sleep(5)
-            upload_reel("reel_video.mp4", caption + "\n\n#ريلز #أزياء #موضة #Fastyle")
-        else:
-            print("⚠️ تم تخطي الستوري والريلز لعدم وجود ملف الفيديو.")
+            upload_fb_reel("reel_video.mp4", caption + "\n\n#ريلز #موضة #Fastyle")
+
+        # إطلاق النشر على إنستجرام
+        time.sleep(5)
+        post_to_instagram("marketing_collage.jpg", "reel_video.mp4", caption)
+
 except Exception as e:
-    print(f"❌ خطأ غير متوقع في عملية النشر: {e}")
+    print(f"❌ خطأ غير متوقع: {e}")
