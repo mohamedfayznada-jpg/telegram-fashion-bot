@@ -10,7 +10,6 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import arabic_reshaper
 from bidi.algorithm import get_display
-from gtts import gTTS
 
 if os.path.exists("skip_flag.txt"): exit(0)
 
@@ -64,28 +63,20 @@ elif len(imgs) == 4:
     positions = [(0, 0), (600, 0), (0, 600), (600, 600)]
     for img, pos in zip(imgs, positions): canvas.paste(img.resize((600, 600)), pos)
 
-# ==========================================
-# إضافة ختم الندرة (Scarcity Badge) أعلى اليمين
-# ==========================================
+# إضافة ختم الندرة
 draw = ImageDraw.Draw(canvas, "RGBA")
 if font_ready:
     badges = ["🔥 أحدث كوليكشن", "⚡ عرض حصري", "🏃‍♀️ الحق قبل النفاذ", "⭐ الأكثر مبيعاً"]
     badge_text = random.choice(badges)
     bidi_text = get_display(arabic_reshaper.reshape(badge_text))
     b_font = ImageFont.truetype(font_path, 45)
-    
-    # حساب حجم الختم
     left, top, right, bottom = b_font.getbbox(bidi_text)
     tw, th = right - left, bottom - top
-    bx, by = 1150 - tw - 40, 40 # موضع أعلى اليمين
-    
-    # رسم خلفية الختم مع زوايا دائرية
-    draw.rounded_rectangle([bx - 20, by - 15, bx + tw + 20, by + th + 15], radius=15, fill=(220, 38, 38, 230)) # لون أحمر جذاب
+    bx, by = 1150 - tw - 40, 40 
+    draw.rounded_rectangle([bx - 20, by - 15, bx + tw + 20, by + th + 15], radius=15, fill=(220, 38, 38, 230))
     draw.text((bx, by - 10), bidi_text, font=b_font, fill=(255, 255, 255, 255))
 
-# ==========================================
-# دمج اللوجو كختم رسمي أسفل اليسار
-# ==========================================
+# الختم السفلي
 footer_height = 220 
 draw.rectangle([0, 1200 - footer_height, 1200, 1200], fill=(15, 23, 42, 240))
 logo_path = "logo.png"
@@ -96,7 +87,6 @@ if os.path.exists(logo_path):
     logo = logo.resize((int(float(logo.width) * float(w_percent)), logo_target_height), Image.Resampling.LANCZOS)
     x_pos = 40
     y_pos = 1200 - footer_height + ((footer_height - logo_target_height) // 2)
-    
     aura = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
     ImageDraw.Draw(aura).ellipse([x_pos-15, y_pos-15, x_pos+logo.width+15, y_pos+logo_target_height+15], fill=(255, 255, 255, 150))
     canvas = Image.alpha_composite(canvas.convert("RGBA"), aura.filter(ImageFilter.GaussianBlur(15)))
@@ -110,9 +100,6 @@ story_bg = story_canvas.resize((1080, 1920)).filter(ImageFilter.GaussianBlur(30)
 story_bg.paste(story_canvas, (0, (1920 - 1080) // 2))
 story_bg.convert("RGB").save("story_ready.jpg", quality=80)
 
-# ==========================================
-# إنشاء فيديو الريلز الحركي 
-# ==========================================
 print("🎥 جاري إنشاء فيديو الريلز الحركي...")
 try:
     with open("ai_result.json", "r", encoding="utf-8") as f: ai_data = json.load(f)
@@ -147,24 +134,20 @@ for idx, img_path in enumerate(v_unique):
             zoom_factor = 1.0 + (0.05 * frame_idx / frames_per_img) 
             bg = base.resize((1920, 1920)).crop(((1920-1080)//2, 0, (1920+1080)//2, 1920)).filter(ImageFilter.GaussianBlur(40))
             bg = Image.alpha_composite(bg.convert('RGBA'), Image.new('RGBA', bg.size, (0, 0, 0, 100))).convert('RGB')
-            
             fg_w = int(1080 * zoom_factor)
             fg_h = int((float(base.height) * (1080 / float(base.width))) * zoom_factor)
             if fg_h > 1650 * zoom_factor:
                 fg_h = int(1650 * zoom_factor)
                 fg_w = int((float(base.width) * (fg_h / float(base.height))))
-                
             bg.paste(base.resize((fg_w, fg_h), Image.Resampling.LANCZOS), ((1080 - fg_w) // 2, (1920 - fg_h) // 2))
             ImageDraw.Draw(bg, 'RGBA').rectangle([0, 1640, 1080, 1920], fill=(15, 23, 42, 240))
             if os.path.exists(logo_path):
                 logo_r = logo.resize((int(float(logo.width) * (220 / float(logo.height))), 220), Image.Resampling.LANCZOS)
                 bg.paste(logo_r, (40, 1670), mask=logo_r)
-
             alpha = min(255, (frame_idx / 15) * 255)
             text_y = 300 - int(50 * (frame_idx / frames_per_img)) 
             if idx == 0: bg = draw_text(bg, ai_data.get("reel_text_1", "شياكة لا تقاوم!"), text_y, 85, alpha)
             elif idx == len(v_unique) - 1: bg = draw_text(bg, ai_data.get("reel_text_2", "اطلبيها دلوقتي"), text_y, 80, alpha)
-                
             video.write(cv2.cvtColor(np.array(bg), cv2.COLOR_RGB2BGR))
     except: pass
 video.release()
