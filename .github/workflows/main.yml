@@ -49,7 +49,9 @@ jobs:
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }} # السطر السحري اللي ناقص!
         run: python publish_to_facebook.py
+
         
       - name: 5. Send Reports to Telegram
         env:
