@@ -18,16 +18,31 @@ if not PAGE_ID or not ACCESS_TOKEN:
 # Micro-service: رفع الملفات لسيرفر مؤقت لتقديمها لإنستجرام
 def get_public_url(local_path):
     print(f"🌐 جاري توليد رابط عام للملف: {local_path}...")
+    
+    # السيرفر الأول: tmpfiles (سريع جداً وممتاز للصور والفيديوهات)
     try:
         with open(local_path, 'rb') as f:
-            res = requests.post("https://catbox.moe/user/api.php", data={"reqtype": "fileupload"}, files={"fileToUpload": f})
+            res = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f})
             if res.status_code == 200:
-                return res.text.strip()
-            else:
-                print(f"⚠️ فشل توليد الرابط: {res.text}")
+                url = res.json()['data']['url']
+                # ميتا بتحتاج الرابط المباشر للملف (Direct Link)
+                direct_url = url.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+                return direct_url
     except Exception as e:
-        print(f"⚠️ خطأ في الاستضافة المؤقتة: {e}")
+        print(f"⚠️ خطأ في السيرفر الأول: {e}")
+
+    # السيرفر البديل (Fallback): pomf2 (لو الأول حصل فيه أي ضغط)
+    try:
+        with open(local_path, 'rb') as f:
+            res = requests.post("https://pomf2.lain.la/upload.php", files={"files[]": f})
+            if res.status_code == 200:
+                return res.json()["files"][0]["url"]
+    except Exception as e:
+        print(f"⚠️ خطأ في السيرفر البديل: {e}")
+
+    print("❌ فشل توليد الرابط من جميع السيرفرات!")
     return None
+
 
 def post_fb_video_story(video_path):
     if not os.path.exists(video_path): return
